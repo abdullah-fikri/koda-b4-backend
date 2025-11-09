@@ -12,5 +12,5 @@ func main() {
 	r := gin.Default()
 	routes.Routes(r)
 
-	r.Run(":8081")
+	r.Run(":8082")
 }
