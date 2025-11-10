@@ -18,6 +18,7 @@ type RegisterRequest struct {
 	Username string `json:"username" binding:"required"`
 	Phone    string `json:"phone" binding:"required"`
 	Address  string `json:"address" binding:"required"`
+	Role     string `json:"-"`
 }
 
 type LoginRequest struct {
