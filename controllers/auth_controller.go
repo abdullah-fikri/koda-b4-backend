@@ -3,6 +3,8 @@ package controllers
 import (
 	"backend/lib"
 	"backend/models"
+	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -133,6 +135,71 @@ func ForgotUSer(ctx *gin.Context) {
 	})
 }
 
+func UploadPicture(ctx *gin.Context) {
+	id := ctx.Param("id")
+
+	file, err := ctx.FormFile("picture")
+	if err != nil {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: "file not found",
+		})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowed := []string{".jpg", ".jpeg", ".png"}
+	valid := false
+	for _, v := range allowed {
+		if ext == v {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: "format harus .jpg .jpeg .png",
+		})
+		return
+	}
+
+	if file.Size > 10<<20 {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: "file maksimal 10MB",
+		})
+		return
+	}
+
+	filename := "profile-picture-" + id + ext
+	path := "./uploads/" + filename
+
+	if err := ctx.SaveUploadedFile(file, path); err != nil {
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: "gagal menyimpan file",
+		})
+		return
+	}
+
+	if err := models.UpdateProfilePicture(id, path); err != nil {
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(200, models.Response{
+		Success: true,
+		Message: "Upload success",
+		Data: map[string]any{
+			"profile_picture": path,
+		},
+	})
+}
+
 //admin
 
 func RegisterAd(ctx *gin.Context) {
@@ -161,7 +228,6 @@ func RegisterAd(ctx *gin.Context) {
 		Data:    user,
 	})
 }
-
 
 func UpdateUserAd(ctx *gin.Context) {
 	var req models.RegisterRequest
