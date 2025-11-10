@@ -72,7 +72,7 @@ func ProductDetail(c *gin.Context) {
 	c.JSON(200, models.Response{
 		Success: true,
 		Message: "success",
-		Data: map[any]any{
+		Data: map[string]any{
 			"data": product,
 		},
 	})
@@ -124,5 +124,29 @@ func UpdateProduct(ctx *gin.Context) {
 		Success: true,
 		Message: "Product updated",
 		Data:    product,
+	})
+}
+func DeleteProduct(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: "Invalid product id",
+		})
+		return
+	}
+
+	err = models.DeleteProduct(int64(id))
+	if err != nil {
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(200, models.Response{
+		Success: true,
+		Message: "Product deleted",
 	})
 }
