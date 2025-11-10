@@ -1,4 +1,4 @@
--- Active: 1762529173248@@localhost@39381@backend_coffee
+-- Active: 1762629892012@@172.17.0.3@5432@postgres
 
 CREATE TABLE users(
     id SERIAL PRIMARY KEY,
