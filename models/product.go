@@ -8,16 +8,16 @@ import (
 )
 
 type ProductSize struct {
-	SizeID   int64   `json:"size_id"`
+	SizeID   int64   `json:"size_id" binding:"required,gt=0"`
 	SizeName string  `json:"size_name"`
-	Price    float64 `json:"price"`
+	Price    float64 `json:"price" binding:"required,gte=0"`
 }
 
 type Product struct {
 	ID          int64         `json:"id"`
 	Name        string        `json:"name"`
 	Description string        `json:"description"`
-	MinPrice    uint64        `json:"min_price"`
+	MinPrice    float64       `json:"min_price"`
 	Stock       int64         `json:"stock"`
 	Category    string        `json:"category"`
 	Images      []string      `json:"images"`
@@ -28,9 +28,9 @@ type Product struct {
 }
 
 type CreateProductRequest struct {
-	Name        string        `json:"name"`
+	Name        string        `json:"name" binding:"required,min=1,max=200"`
 	Description string        `json:"description"`
-	Stock       int           `json:"stock"`
+	Stock       int           `json:"stock" binding:"required,gte=0"`
 	CategoryID  int           `json:"category_id"`
 	Images      []string      `json:"images"`
 	Variants    []int         `json:"variants"`
@@ -220,8 +220,8 @@ func CreateProduct(req CreateProductRequest) (*Product, error) {
 
 	var productID int64
 	err := config.Db.QueryRow(ctx,
-		`INSERT INTO products (name, description, price, stock, category_id)
-		 VALUES ($1,$2,0,$3,$4)
+		`INSERT INTO products (name, description, stock, category_id)
+		 VALUES ($1,$2,$3,$4)
 		 RETURNING id`,
 		req.Name, req.Description, req.Stock, req.CategoryID,
 	).Scan(&productID)
@@ -303,4 +303,14 @@ func DeleteProduct(id int64) error {
 	}
 
 	return nil
+}
+
+func UploadImgProduct(productID int64, imagePath string) error {
+	ctx := context.Background()
+
+	_, err := config.Db.Exec(ctx,
+		`INSERT INTO product_img (image, product_id) VALUES ($1, $2)`,
+		imagePath, productID,
+	)
+	return err
 }
