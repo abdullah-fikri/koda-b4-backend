@@ -6,6 +6,16 @@ import (
 	"context"
 )
 
+type ListUserStruct struct {
+	ID             int64  `json:"id"`
+	Email          string `json:"email"`
+	Role           string `json:"role"`
+	Username       string `json:"username"`
+	Phone          string `json:"phone"`
+	Address        string `json:"address"`
+	ProfilePicture string `json:"profile_picture"`
+}
+
 type User struct {
 	ID       int64  `json:"id"`
 	Email    string `json:"email"`
@@ -149,4 +159,49 @@ func UpdateProfilePicture(userID int64, path string) error {
 	)
 
 	return err
+}
+
+func ListUser() ([]ListUserStruct, error) {
+	ctx := context.Background()
+
+	query := `
+	SELECT 
+		u.id,
+		u.email,
+		u.role,
+		p.username,
+		p.phone,
+		p.address,
+		COALESCE(p.profile_picture, '') AS profile_picture
+	FROM users u
+	JOIN profile p ON p.users_id = u.id;
+	`
+
+	rows, err := config.Db.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []ListUserStruct
+
+	for rows.Next() {
+		var u ListUserStruct
+		err := rows.Scan(
+			&u.ID,
+			&u.Email,
+			&u.Role,
+			&u.Username,
+			&u.Phone,
+			&u.Address,
+			&u.ProfilePicture,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		users = append(users, u)
+	}
+
+	return users, nil
 }
