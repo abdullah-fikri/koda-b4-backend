@@ -74,3 +74,124 @@ func Login(email string) (*User, error) {
 
 	return &user, nil
 }
+func UpdateUser(email string, req RegisterRequest) (*User, error) {
+	ctx := context.Background()
+
+	hashedPassword := lib.HashPassword(req.Password)
+
+	_, err := config.Db.Exec(ctx,
+		`UPDATE users SET password=$1 WHERE email=$2`,
+		hashedPassword, email,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = config.Db.Exec(ctx,
+		`UPDATE profile 
+		 SET username=$1, phone=$2, address=$3
+		 WHERE users_id = (SELECT id FROM users WHERE email=$4)`,
+		req.Username, req.Phone, req.Address, email,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var user User
+	err = config.Db.QueryRow(ctx,
+		`SELECT id, email, role FROM users WHERE email=$1`,
+		email,
+	).Scan(&user.ID, &user.Email, &user.Role)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func Forgot(email string) (*User, error) {
+	ctx := context.Background()
+
+	var user User
+	err := config.Db.QueryRow(ctx,
+		`SELECT id,email,role FROM users WHERE email=$1`, email).Scan(&user.ID, &user.Email, &user.Role)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+//admin
+
+func RegisterAd(req RegisterRequest) (*User, error) {
+	ctx := context.Background()
+
+	hashedPassword := lib.HashPassword(req.Password)
+
+	var userID int64
+	err := config.Db.QueryRow(ctx,
+		`INSERT INTO users (email, password, role)
+         VALUES ($1, $2, 'user')
+         RETURNING id`,
+		req.Email, hashedPassword,
+	).Scan(&userID)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = config.Db.Exec(ctx,
+		`INSERT INTO profile (users_id, username, phone, address)
+         VALUES ($1, $2, $3, $4)`,
+		userID, req.Username, req.Phone, req.Address,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &User{
+		ID:    userID,
+		Email: req.Email,
+		Role:  "user",
+	}, nil
+}
+
+
+
+func UpdateUserAd(email string, req RegisterRequest) (*User, error) {
+	ctx := context.Background()
+
+	hashedPassword := lib.HashPassword(req.Password)
+
+	_, err := config.Db.Exec(ctx,
+		`UPDATE users SET password=$1 WHERE email=$2`,
+		hashedPassword, email,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = config.Db.Exec(ctx,
+		`UPDATE profile 
+		 SET username=$1, phone=$2, address=$3
+		 WHERE users_id = (SELECT id FROM users WHERE email=$4)`,
+		req.Username, req.Phone, req.Address, email,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var user User
+	err = config.Db.QueryRow(ctx,
+		`SELECT id, email, role FROM users WHERE email=$1`,
+		email,
+	).Scan(&user.ID, &user.Email, &user.Role)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
