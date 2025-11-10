@@ -288,3 +288,21 @@ func UploadPicture(ctx *gin.Context) {
 		},
 	})
 }
+
+
+func ListUser(ctx *gin.Context){
+	user, err := models.ListUser()
+	if err != nil {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(200, models.Response{
+		Success: true,
+		Message: "list all user",
+		Data: user,
+	})
+}
