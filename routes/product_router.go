@@ -16,6 +16,7 @@ func ProductRouter(r *gin.Engine) {
 	admin.POST("/product", controllers.CreateProduct)
 	admin.PUT("/product/:id", controllers.UpdateProduct)
 	admin.DELETE("/product/:id", controllers.DeleteProduct)
+	admin.POST("/product/:id/pictures", controllers.UploadProductImages)
 
 	r.GET("/products", controllers.Product)
 	r.GET("/products/:id", controllers.ProductDetail)
