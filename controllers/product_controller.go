@@ -2,7 +2,13 @@ package controllers
 
 import (
 	"backend/models"
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -72,16 +78,14 @@ func ProductDetail(c *gin.Context) {
 	c.JSON(200, models.Response{
 		Success: true,
 		Message: "success",
-		Data: map[string]any{
-			"data": product,
-		},
+		Data: product,
 	})
 }
 
 func CreateProduct(ctx *gin.Context) {
 	var req models.CreateProductRequest
 
-	if err := ctx.BindJSON(&req); err != nil {
+	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(400, models.Response{
 			Success: false,
 			Message: err.Error(),
@@ -109,7 +113,7 @@ func UpdateProduct(ctx *gin.Context) {
 	id, _ := strconv.Atoi(ctx.Param("id"))
 
 	var req models.CreateProductRequest
-	if err := ctx.BindJSON(&req); err != nil {
+	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(400, models.Response{Success: false, Message: err.Error()})
 		return
 	}
@@ -148,5 +152,127 @@ func DeleteProduct(ctx *gin.Context) {
 	ctx.JSON(200, models.Response{
 		Success: true,
 		Message: "Product deleted",
+	})
+}
+
+func UploadProductImages(ctx *gin.Context) {
+	productIDParam := ctx.Param("id")
+	productID, err := strconv.ParseInt(productIDParam, 10, 64)
+	if err != nil {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: "invalid product id",
+		})
+		return
+	}
+
+	role := ctx.MustGet("role").(string)
+	if role != "admin" {
+		ctx.JSON(403, models.Response{
+			Success: false,
+			Message: "only admin can upload product images",
+		})
+		return
+	}
+
+	file, err := ctx.FormFile("image")
+	if err != nil {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: "file not found",
+		})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowed := []string{".jpg", ".jpeg", ".png"}
+	valid := false
+	for _, v := range allowed {
+		if ext == v {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: "format harus .jpg .jpeg .png",
+		})
+		return
+	}
+
+	if file.Size > 10<<20 {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: "file maksimal 10MB",
+		})
+		return
+	}
+
+	openedFile, err := file.Open()
+	if err != nil {
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: "gagal membaca file",
+		})
+		return
+	}
+	defer openedFile.Close()
+
+	buffer := make([]byte, 512)
+	_, err = openedFile.Read(buffer)
+	if err != nil {
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: "gagal validasi file",
+		})
+		return
+	}
+
+	contentType := http.DetectContentType(buffer)
+	if !strings.HasPrefix(contentType, "image/") {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: "file bukan gambar valid",
+		})
+		return
+	}
+
+	uploadDir := "./product_uploads"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: "gagal membuat direktori upload",
+		})
+		return
+	}
+
+	filename := fmt.Sprintf("product-%d-%d%s", productID, time.Now().Unix(), ext)
+	path := filepath.Join(uploadDir, filename)
+
+	if err := ctx.SaveUploadedFile(file, path); err != nil {
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: "gagal menyimpan file",
+		})
+		return
+	}
+
+	err = models.UploadImgProduct(productID, path)
+	if err != nil {
+		os.Remove(path)
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(200, models.Response{
+		Success: true,
+		Message: "Upload product image success",
+		Data: map[string]any{
+			"image": path,
+		},
 	})
 }
