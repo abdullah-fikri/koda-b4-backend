@@ -3,8 +3,13 @@ package controllers
 import (
 	"backend/lib"
 	"backend/models"
+	"fmt"
+	"net/http"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,12 +17,25 @@ import (
 func RegisterUser(ctx *gin.Context) {
 	var req models.RegisterRequest
 
-	if err := ctx.BindJSON(&req); err != nil {
+	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(400, models.Response{
 			Success: false,
 			Message: err.Error(),
 		})
 		return
+	}
+
+	roleVal, exists := ctx.Get("role")
+
+	if !exists {
+		req.Role = "user"
+	} else {
+		role := roleVal.(string)
+		if role == "admin" {
+			req.Role = "user"
+		} else {
+			req.Role = "user"
+		}
 	}
 
 	user, err := models.Register(req)
@@ -39,7 +57,7 @@ func RegisterUser(ctx *gin.Context) {
 func LoginUser(ctx *gin.Context) {
 	var req models.LoginRequest
 
-	if err := ctx.BindJSON(&req); err != nil {
+	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(400, models.Response{
 			Success: false,
 			Message: err.Error(),
@@ -77,66 +95,98 @@ func LoginUser(ctx *gin.Context) {
 
 }
 func UpdateUser(ctx *gin.Context) {
-	var req models.RegisterRequest
-	if err := ctx.BindJSON(&req); err != nil {
-		ctx.JSON(400, models.Response{
+	idParam := ctx.Param("id")
+	targetID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(400, models.Response{Success: false, Message: "invalid user id"})
+		return
+	}
+
+	userID := ctx.MustGet("user_id").(int64)
+	role := ctx.MustGet("role").(string)
+
+	if role != "admin" && userID != targetID {
+		ctx.JSON(403, models.Response{
 			Success: false,
-			Message: err.Error(),
+			Message: "you cannot update another user's data",
 		})
 		return
 	}
 
-	u, err := models.UpdateUser(req.Email, req)
+	var req models.RegisterRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(400, models.Response{Success: false, Message: err.Error()})
+		return
+	}
+
+	userEmail, err := models.GetUserEmailByID(targetID)
 	if err != nil {
-		ctx.JSON(500, models.Response{
+		ctx.JSON(400, models.Response{
 			Success: false,
-			Message: err.Error(),
+			Message: "user not found",
 		})
+		return
+	}
+
+	updated, err := models.UpdateUser(userEmail, req)
+	if err != nil {
+		ctx.JSON(500, models.Response{Success: false, Message: err.Error()})
 		return
 	}
 
 	ctx.JSON(200, models.Response{
 		Success: true,
 		Message: "update succesfully",
-		Data:    u,
-	})
-}
-
-func ForgotUSer(ctx *gin.Context) {
-	var req models.LoginRequest
-
-	if err := ctx.BindJSON(&req); err != nil {
-		ctx.JSON(400, models.Response{
-			Success: false,
-			Message: err.Error(),
-		})
-		return
-	}
-
-	user, err := models.Forgot(req.Email)
-	if err != nil {
-		ctx.JSON(400, models.Response{
-			Success: false,
-			Message: "email not found",
-		})
-		return
-	}
-
-	intId := int(user.ID)
-	token := lib.GeneratedTokens(intId, user.Role)
-
-	ctx.JSON(200, models.Response{
-		Success: true,
-		Message: "account reset success",
-		Data: map[string]any{
-			"user":  user,
-			"token": token,
-		},
+		Data:    updated,
 	})
 }
 
 func UploadPicture(ctx *gin.Context) {
-	id := ctx.Param("id")
+	idParam := ctx.Param("id")
+
+	paramUserID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: "invalid user id",
+		})
+		return
+	}
+
+	userIDInterface, exists := ctx.Get("user_id")
+	if !exists {
+		ctx.JSON(401, models.Response{
+			Success: false,
+			Message: "unauthorized",
+		})
+		return
+	}
+
+	var userID int64
+	switch v := userIDInterface.(type) {
+	case int:
+		userID = int64(v)
+	case int64:
+		userID = v
+	case float64:
+		userID = int64(v)
+	default:
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: "invalid user id format",
+		})
+		return
+	}
+
+	userRole := ctx.MustGet("role").(string)
+
+	if userRole != "admin" && userID != paramUserID {
+		ctx.JSON(403, models.Response{
+			Success: false,
+			Message: "you cannot change another user's profile picture",
+		})
+		return
+	}
 
 	file, err := ctx.FormFile("picture")
 	if err != nil {
@@ -172,8 +222,46 @@ func UploadPicture(ctx *gin.Context) {
 		return
 	}
 
-	filename := "profile-picture-" + id + ext
-	path := "./uploads/" + filename
+	openedFile, err := file.Open()
+	if err != nil {
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: "gagal membaca file",
+		})
+		return
+	}
+	defer openedFile.Close()
+
+	buffer := make([]byte, 512)
+	_, err = openedFile.Read(buffer)
+	if err != nil {
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: "gagal validasi file",
+		})
+		return
+	}
+
+	contentType := http.DetectContentType(buffer)
+	if !strings.HasPrefix(contentType, "image/") {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: "file bukan gambar valid",
+		})
+		return
+	}
+
+	uploadDir := "./uploads"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: "gagal membuat direktori upload",
+		})
+		return
+	}
+
+	filename := fmt.Sprintf("profile-picture-%d-%d%s", paramUserID, time.Now().Unix(), ext)
+	path := filepath.Join(uploadDir, filename)
 
 	if err := ctx.SaveUploadedFile(file, path); err != nil {
 		ctx.JSON(500, models.Response{
@@ -183,7 +271,8 @@ func UploadPicture(ctx *gin.Context) {
 		return
 	}
 
-	if err := models.UpdateProfilePicture(id, path); err != nil {
+	if err := models.UpdateProfilePicture(paramUserID, path); err != nil {
+		os.Remove(path)
 		ctx.JSON(500, models.Response{
 			Success: false,
 			Message: err.Error(),
@@ -197,60 +286,5 @@ func UploadPicture(ctx *gin.Context) {
 		Data: map[string]any{
 			"profile_picture": path,
 		},
-	})
-}
-
-//admin
-
-func RegisterAd(ctx *gin.Context) {
-	var req models.RegisterRequest
-
-	if err := ctx.BindJSON(&req); err != nil {
-		ctx.JSON(400, models.Response{
-			Success: false,
-			Message: err.Error(),
-		})
-		return
-	}
-
-	user, err := models.RegisterAd(req)
-	if err != nil {
-		ctx.JSON(400, models.Response{
-			Success: false,
-			Message: err.Error(),
-		})
-		return
-	}
-
-	ctx.JSON(200, models.Response{
-		Success: true,
-		Message: "Register success",
-		Data:    user,
-	})
-}
-
-func UpdateUserAd(ctx *gin.Context) {
-	var req models.RegisterRequest
-	if err := ctx.BindJSON(&req); err != nil {
-		ctx.JSON(400, models.Response{
-			Success: false,
-			Message: err.Error(),
-		})
-		return
-	}
-
-	u, err := models.UpdateUser(req.Email, req)
-	if err != nil {
-		ctx.JSON(500, models.Response{
-			Success: false,
-			Message: err.Error(),
-		})
-		return
-	}
-
-	ctx.JSON(200, models.Response{
-		Success: true,
-		Message: "update succesfully",
-		Data:    u,
 	})
 }
