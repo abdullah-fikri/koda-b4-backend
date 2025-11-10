@@ -279,3 +279,28 @@ func UpdateProduct(id int64, req CreateProductRequest) (*Product, error) {
 
 	return GetProductByID(id)
 }
+func DeleteProduct(id int64) error {
+	ctx := context.Background()
+
+	_, err := config.Db.Exec(ctx, `DELETE FROM product_img WHERE product_id=$1`, id)
+	if err != nil {
+		return err
+	}
+
+	_, err = config.Db.Exec(ctx, `DELETE FROM product_variant WHERE product_id=$1`, id)
+	if err != nil {
+		return err
+	}
+
+	_, err = config.Db.Exec(ctx, `DELETE FROM product_size WHERE product_id=$1`, id)
+	if err != nil {
+		return err
+	}
+
+	_, err = config.Db.Exec(ctx, `DELETE FROM products WHERE id=$1`, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
