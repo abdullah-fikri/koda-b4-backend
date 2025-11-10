@@ -15,7 +15,8 @@ CREATE TABLE profile (
     username varchar(100),
     phone VARCHAR(20),
     address VARCHAR(100),
-   FOREIGN KEY (users_id) REFERENCES users(id) ON DELETE CASCADE,
+    profile_picture TEXT,
+    FOREIGN KEY (users_id) REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now()
 );
