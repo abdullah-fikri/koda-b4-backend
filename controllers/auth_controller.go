@@ -161,3 +161,30 @@ func RegisterAd(ctx *gin.Context) {
 		Data:    user,
 	})
 }
+
+
+func UpdateUserAd(ctx *gin.Context) {
+	var req models.RegisterRequest
+	if err := ctx.BindJSON(&req); err != nil {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	u, err := models.UpdateUser(req.Email, req)
+	if err != nil {
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(200, models.Response{
+		Success: true,
+		Message: "update succesfully",
+		Data:    u,
+	})
+}
