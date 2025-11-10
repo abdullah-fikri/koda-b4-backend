@@ -8,14 +8,13 @@ import (
 )
 
 func AuthRoutes(r *gin.Engine) {
+	auth := r.Group("/auth")
+	auth.POST("/register", controllers.RegisterUser)
+	auth.POST("/login", controllers.LoginUser)
+	auth.PUT("/update/:id", middleware.Auth(), controllers.UpdateUser)
+
 	admin := r.Group("/admin")
-	admin.Use(middleware.Auth())
-	admin.Use(middleware.AdminOnly())
-
-	admin.POST("/register", controllers.RegisterAd)
-	admin.POST("/update", controllers.UpdateUserAd)
-
-	r.POST("/auth/register", controllers.RegisterUser)
-	r.POST("/auth/login", controllers.LoginUser)
-	r.PUT("/auth/update", controllers.UpdateUser)
+	admin.Use(middleware.Auth(), middleware.AdminOnly())
+	admin.POST("/:id/picture", controllers.UploadPicture)
+	admin.PUT("/:id/update", controllers.UpdateUser)
 }
