@@ -44,6 +44,11 @@ type OrderItemRes struct {
 	Subtotal    float64 `json:"subtotal"`
 }
 
+type UpdateOrderStatusRequest struct {
+	Status string `json:"status" example:"Done"`
+}
+
+
 func CreateOrder(userID int64, req CreateOrderRequest) (int64, error) {
 	ctx := context.Background()
 

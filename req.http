@@ -1,0 +1,252 @@
+POST http://localhost:8082/auth/register
+Content-Type: application/json
+
+{
+  "email": "tes1234@email.com",
+  "password": "tes123",
+  "username": "fiki",
+  "phone": "08123456789",
+  "address": "Jl. Kenangan No. 42"
+}
+
+### register by admin
+POST http://localhost:8082/auth/register
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjI4NTYyNDYsImlhdCI6MTc2Mjc2OTg0Nn0.hiekgd1jq8oU5Ij_xKAQIJN6zdfJ-dzfbvEKV9kItxM
+
+{
+  "email": "user123@example.com",
+  "password": "tes",
+  "username": "User dua",
+  "phone": "0888xxx",
+  "address": "alamat"
+}
+
+
+
+### login  
+POST http://localhost:8082/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin123@gmail.com",
+  "password": "admin123"
+}
+
+### login  user
+POST http://localhost:8082/auth/login
+Content-Type: application/json
+
+{
+  "email": "tes1@email.com",
+  "password": "tes123"
+}
+
+
+### update user
+PUT http://localhost:8082/auth/update/2
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjI4NTYyNDYsImlhdCI6MTc2Mjc2OTg0Nn0.hiekgd1jq8oU5Ij_xKAQIJN6zdfJ-dzfbvEKV9kItxM
+Content-Type: application/json
+
+{
+  "email": "baru@example.com",
+  "password": "resetPassword",
+  "username": "nama diganti user",
+  "phone": "081234567999",
+  "address": "Alamat by user"
+}
+
+### admin update user
+PUT http://localhost:8082/auth/update/2
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzYyODU2MzQyLCJpYXQiOjE3NjI3Njk5NDJ9.w5RZGiQWZKlqH8UH1KIfyw94wtJlgzJdKkfqD9tiAvE
+Content-Type: application/json
+
+{
+  "email": "baru@example.com",
+  "password": "resetPassword",
+  "username": "nama diganti admin",
+  "phone": "081234567999",
+  "address": "Alamat by admin"
+}
+
+
+### Get all user 
+GET http://localhost:8082/admin/user
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzYyODU2MzQyLCJpYXQiOjE3NjI3Njk5NDJ9.w5RZGiQWZKlqH8UH1KIfyw94wtJlgzJdKkfqD9tiAvE
+
+
+### Get all products 
+GET http://localhost:8082/products
+
+### Get products dengan pagination
+GET http://localhost:8082/products?page=2&limit=5
+
+### Get products dengan search
+GET http://localhost:8082/products?search=choco
+
+### Get products + search + pagination
+GET http://localhost:8082/products?page=1&limit=10&search=choco
+
+### Get products diurutkan terbaru (default)
+GET http://localhost:8082/products?sort=newest
+
+### Urutkan dari yang paling lama
+GET http://localhost:8082/products?sort=oldest
+
+### Urutkan dari harga paling murah
+GET http://localhost:8082/products?sort=price_low
+
+### Urutkan dari harga paling mahal
+GET http://localhost:8082/products?sort=price_high
+
+### all
+GET http://localhost:8082/products?page=3&limit=8&search=choco&sort=price_high
+
+
+### detail product by id
+GET http://localhost:8082/products/50
+
+
+
+
+
+### create products
+POST http://localhost:8082/admin/product
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzYyODU2MzQyLCJpYXQiOjE3NjI3Njk5NDJ9.w5RZGiQWZKlqH8UH1KIfyw94wtJlgzJdKkfqD9tiAvE
+Content-Type: application/json
+
+{
+  "name": "Choco Irish",
+  "description": "Taste of non-alcoholic Irish coffee and chocolate",
+  "stock": 200,
+  "category_id": 3,
+  "images": [
+    "image.png",
+    "image2.png"
+  ],
+  "variants": [1, 2],
+  "sizes": [
+    { "size_id": 1, "price": 22000 },
+    { "size_id": 2, "price": 27000 }
+  ]
+}
+
+
+### update product
+PUT http://localhost:8082/admin/product/51
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzYyNzkzODkxLCJpYXQiOjE3NjI3MDc0OTF9.mdD5dBpVZrgMVw1PFXTBIY-CbDs2QS5nzf33AA1zMkI
+
+{
+  "name": "Choco Irish hh",
+  "description": "Taste of non-alcoholic Irish coffee and chocolate",
+  "stock": 200,
+  "category_id": 3,
+  "images": [
+    "image.png",
+    "image2.png"
+  ],
+  "variants": [1, 2],
+  "sizes": [
+    { "size_id": 1, "price": 22000 },
+    { "size_id": 2, "price": 27000 }
+  ]
+}
+
+
+### delete product
+DELETE http://localhost:8082/admin/product/51
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzYyODMxMDA4LCJpYXQiOjE3NjI3NDQ2MDh9.83rbpXaEm2wugiPM3x5JnkAlR8H13f5VvandFYITc8k
+
+
+### create order
+POST http://localhost:8082/user/order
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwicm9sZSI6InVzZXIiLCJleHAiOjE3NjI4NzI0ODIsImlhdCI6MTc2Mjc4NjA4Mn0.ekbr5kbtfpUaTwQaUMY39U4IjEWoUKXKujzTuXKVIEs
+Content-Type: application/json
+
+{
+  "payment_id": 1,
+  "shipping_id": 1,
+  "customer_name": "Budi Setiawan",
+  "customer_phone": "081234567890",
+  "customer_address": "Jl. Cendol No. 24",
+  "items": [
+    { "product_id": 52, "variant_id": 1, "size_id": 2, "qty": 2, "subtotal": 54000 },
+    { "product_id": 40, "variant_id": 2, "qty": 1, "subtotal": 18000 }
+  ]
+}
+
+
+### history
+GET http://localhost:8082/user/history
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzYyODQ2ODQ5LCJpYXQiOjE3NjI3NjA0NDl9.k1dOLRdRz9AgdQV9_q88tIvufy4Xo3lgMb4eNU1Eg4E
+
+
+### detail order
+GET http://localhost:8082/user/order/7
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzYyODQ2ODQ5LCJpYXQiOjE3NjI3NjA0NDl9.k1dOLRdRz9AgdQV9_q88tIvufy4Xo3lgMb4eNU1Eg4E
+
+
+### Upload Gambar
+POST http://localhost:8082/auth/1/picture
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjI3OTkxNDksImlhdCI6MTc2MjcxMjc0OX0.RbwCQcKgUwnZcIoPpq0y9C-4uOVSMKiultL8THuhaak
+Content-Type: multipart/form-data; boundary=BOUNDARY
+
+--BOUNDARY
+Content-Disposition: form-data; name="picture"; filename="tes.png"
+Content-Type: image/png
+
+< /home/fiki/Gambar/img/tes.png
+--BOUNDARY--
+
+
+### Upload user profile picture
+POST http://localhost:8082/auth/2/picture
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjI4NDY3OTIsImlhdCI6MTc2Mjc2MDM5Mn0.YMwanKCPk3CFl5n2OtCi65mDPMGXvlHNt_crG6iV9JY
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="picture"; filename="tes.png"
+Content-Type: image/png
+
+< /home/fiki/Gambar/img/tes.png
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+
+
+### Admin upload user profile picture
+POST http://localhost:8082/admin/2/picture
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzYyODQ2ODQ5LCJpYXQiOjE3NjI3NjA0NDl9.k1dOLRdRz9AgdQV9_q88tIvufy4Xo3lgMb4eNU1Eg4E
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="picture"; filename="tes.jpeg"
+Content-Type: image/jpeg
+
+< /home/fiki/Gambar/img/tes.png
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+
+### upload gambar products
+POST http://localhost:8082/admin/product/50/pictures
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzYyODQ2ODQ5LCJpYXQiOjE3NjI3NjA0NDl9.k1dOLRdRz9AgdQV9_q88tIvufy4Xo3lgMb4eNU1Eg4E
+Content-Type: multipart/form-data; boundary=MyBoundary
+
+--MyBoundary
+Content-Disposition: form-data; name="image"; filename="myproduct.png"
+Content-Type: image/png
+
+< /home/fiki/Gambar/img/tes.png
+--MyBoundary--
+
+
+### list order
+GET http://localhost:8082/admin/orders
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzYyODQ2ODQ5LCJpYXQiOjE3NjI3NjA0NDl9.k1dOLRdRz9AgdQV9_q88tIvufy4Xo3lgMb4eNU1Eg4E
+
+
+### update status order
+PUT http://localhost:8082/admin/orders/3/status
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzYyODQ2ODQ5LCJpYXQiOjE3NjI3NjA0NDl9.k1dOLRdRz9AgdQV9_q88tIvufy4Xo3lgMb4eNU1Eg4E
+
+{
+  "status": "Done"
+}

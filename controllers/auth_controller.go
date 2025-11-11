@@ -1,8 +1,11 @@
 package controllers
 
 import (
+	"backend/config"
 	"backend/lib"
 	"backend/models"
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,6 +17,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// RegisterUser godoc
+// @Summary Register a new user
+// @Description Create a new user account
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body models.RegisterRequest true "Register Data"
+// @Success 200 {object} models.Response
+// @Failure 400 {object} models.Response
+// @Router /auth/register [post]
 func RegisterUser(ctx *gin.Context) {
 	var req models.RegisterRequest
 
@@ -47,6 +60,7 @@ func RegisterUser(ctx *gin.Context) {
 		return
 	}
 
+	config.Rdb.Del(context.Background(), "/users")
 	ctx.JSON(200, models.Response{
 		Success: true,
 		Message: "Register success",
@@ -54,6 +68,16 @@ func RegisterUser(ctx *gin.Context) {
 	})
 }
 
+// LoginUser godoc
+// @Summary Login user
+// @Description Login with email and password to get token
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body models.LoginRequest true "Login Data"
+// @Success 200 {object} models.Response
+// @Failure 400 {object} models.Response
+// @Router /auth/login [post]
 func LoginUser(ctx *gin.Context) {
 	var req models.LoginRequest
 
@@ -94,6 +118,19 @@ func LoginUser(ctx *gin.Context) {
 	})
 
 }
+
+// UpdateUser godoc
+// @Summary Update user data
+// @Description User can update their account, admin can update any account
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Param request body models.RegisterRequest true "Updated Data"
+// @Success 200 {object} models.Response
+// @Failure 400 {object} models.Response
+// @Failure 403 {object} models.Response
+// @Router /user/{id} [put]
 func UpdateUser(ctx *gin.Context) {
 	idParam := ctx.Param("id")
 	targetID, err := strconv.ParseInt(idParam, 10, 64)
@@ -134,6 +171,8 @@ func UpdateUser(ctx *gin.Context) {
 		return
 	}
 
+	config.Rdb.Del(context.Background(), "/users")
+
 	ctx.JSON(200, models.Response{
 		Success: true,
 		Message: "update succesfully",
@@ -141,6 +180,18 @@ func UpdateUser(ctx *gin.Context) {
 	})
 }
 
+// UploadPicture godoc
+// @Summary Upload user profile picture
+// @Description Upload profile picture (.jpg/.jpeg/.png)
+// @Tags User
+// @Accept multipart/form-data
+// @Produce json
+// @Param id path int true "User ID"
+// @Param picture formData file true "Profile Picture"
+// @Success 200 {object} models.Response
+// @Failure 400 {object} models.Response
+// @Failure 403 {object} models.Response
+// @Router /user/{id}/picture [post]
 func UploadPicture(ctx *gin.Context) {
 	idParam := ctx.Param("id")
 
@@ -280,6 +331,7 @@ func UploadPicture(ctx *gin.Context) {
 		return
 	}
 
+	config.Rdb.Del(context.Background(), "/users")
 	ctx.JSON(200, models.Response{
 		Success: true,
 		Message: "Upload success",
@@ -289,20 +341,44 @@ func UploadPicture(ctx *gin.Context) {
 	})
 }
 
+// ListUser godoc
+// @Summary Get all users
+// @Description Only admin can view all user list
+// @Tags Admin
+// @Produce json
+// @Success 200 {object} models.Response
+// @Failure 400 {object} models.Response
+// @Router /admin/users [get]
+func ListUser(ctx *gin.Context) {
+	key := ctx.Request.RequestURI
+	var users []models.ListUserStruct
 
-func ListUser(ctx *gin.Context){
-	user, err := models.ListUser()
-	if err != nil {
-		ctx.JSON(400, models.Response{
-			Success: false,
-			Message: err.Error(),
+	cache, err := config.Rdb.Get(context.Background(), key).Result()
+	if err != nil || cache == "" {
+		users, err = models.ListUser()
+		if err != nil {
+			ctx.JSON(400, models.Response{
+				Success: false,
+				Message: err.Error(),
+			})
+			return
+		}
+
+		data, _ := json.Marshal(users)
+		config.Rdb.Set(context.Background(), key, data, 15*time.Second)
+
+		ctx.JSON(200, models.Response{
+			Success: true,
+			Message: "success data from db",
+			Data:    users,
 		})
 		return
 	}
 
+	json.Unmarshal([]byte(cache), &users)
 	ctx.JSON(200, models.Response{
 		Success: true,
-		Message: "list all user",
-		Data: user,
+		Message: "data from cache",
+		Data:    users,
 	})
 }

@@ -13,6 +13,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Product godoc
+// @Summary Get all products
+// @Description Public product list
+// @Tags Products
+// @Produce json
+// @Param search query string false "Search keyword"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} models.Response
+// @Router /products [get]
 func Product(ctx *gin.Context) {
 	pageStr := ctx.DefaultQuery("page", "1")
 	limitStr := ctx.DefaultQuery("limit", "10")
@@ -54,6 +64,14 @@ func Product(ctx *gin.Context) {
 	})
 }
 
+// ProductDetail godoc
+// @Summary Get product detail by ID
+// @Description Fetch product detail
+// @Tags Products
+// @Produce json
+// @Param id path int true "Product ID"
+// @Success 200 {object} models.Response
+// @Router /products/{id} [get]
 func ProductDetail(c *gin.Context) {
 	idParam := c.Param("id")
 	productID, err := strconv.ParseInt(idParam, 10, 64)
@@ -81,7 +99,17 @@ func ProductDetail(c *gin.Context) {
 		Data: product,
 	})
 }
-
+// CreateProduct godoc
+// @Summary Create new product
+// @Description Admin creates a new product
+// @Tags Admin - Product
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param product body models.CreateProductRequest true "Product data"
+// @Success 200 {object} models.Response
+// @Failure 400 {object} models.Response
+// @Router /admin/product [post]
 func CreateProduct(ctx *gin.Context) {
 	var req models.CreateProductRequest
 
@@ -108,7 +136,18 @@ func CreateProduct(ctx *gin.Context) {
 		Data:    product,
 	})
 }
-
+// UpdateProduct godoc
+// @Summary Update product
+// @Description Admin updates product data
+// @Tags Admin - Product
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Product ID"
+// @Param product body models.UpdateProductRequest true "Updated product data"
+// @Success 200 {object} models.Response
+// @Failure 400 {object} models.Response
+// @Router /admin/product/{id} [put]
 func UpdateProduct(ctx *gin.Context) {
 	id, _ := strconv.Atoi(ctx.Param("id"))
 
@@ -130,6 +169,16 @@ func UpdateProduct(ctx *gin.Context) {
 		Data:    product,
 	})
 }
+
+// DeleteProduct godoc
+// @Summary Delete product
+// @Description Admin can delete product
+// @Tags Products (Admin)
+// @Param id path int true "Product ID"
+// @Success 200 {object} models.Response
+// @Failure 400 {object} models.Response
+// @Failure 500 {object} models.Response
+// @Router /admin/products/{id} [delete]
 func DeleteProduct(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -155,6 +204,19 @@ func DeleteProduct(ctx *gin.Context) {
 	})
 }
 
+// UploadProductImages godoc
+// @Summary Upload product image
+// @Description Upload image for product (.jpg, .jpeg, .png max 10MB)
+// @Tags Products (Admin)
+// @Accept multipart/form-data
+// @Produce json
+// @Param id path int true "Product ID"
+// @Param image formData file true "Product Image"
+// @Success 200 {object} models.Response
+// @Failure 400 {object} models.Response
+// @Failure 403 {object} models.Response
+// @Failure 500 {object} models.Response
+// @Router /admin/products/{id}/image [post]
 func UploadProductImages(ctx *gin.Context) {
 	productIDParam := ctx.Param("id")
 	productID, err := strconv.ParseInt(productIDParam, 10, 64)

@@ -9,6 +9,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// CreateOrder godoc
+// @Summary Create a new order
+// @Description User membuat pesanan baru
+// @Tags User - Orders
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param order body models.CreateOrderRequest true "Order Request Body"
+// @Success 200 {object} models.Response
+// @Failure 400 {object} models.Response
+// @Failure 500 {object} models.Response
+// @Router /user/order [post]
 func CreateOrder(ctx *gin.Context) {
 	userData, _ := ctx.Get("user")
 	user := userData.(lib.UserPayload)
@@ -38,6 +50,15 @@ func CreateOrder(ctx *gin.Context) {
 	})
 }
 
+// OrderHistory godoc
+// @Summary Get user's order history
+// @Description Menampilkan list order milik user yang sedang login
+// @Tags User - Orders
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} models.Response
+// @Failure 500 {object} models.Response
+// @Router /user/history [get]
 func OrderHistory(ctx *gin.Context) {
 	userData, _ := ctx.Get("user")
 	user := userData.(lib.UserPayload)
@@ -57,6 +78,17 @@ func OrderHistory(ctx *gin.Context) {
 	})
 }
 
+// OrderDetail godoc
+// @Summary Get order detail by ID
+// @Description User melihat detail 1 order miliknya
+// @Tags User - Orders
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Order ID"
+// @Success 200 {object} models.Response
+// @Failure 400 {object} models.Response
+// @Failure 500 {object} models.Response
+// @Router /user/order/{id} [get]
 func OrderDetail(ctx *gin.Context) {
 	idParam := ctx.Param("id")
 	orderID, err := strconv.Atoi(idParam)

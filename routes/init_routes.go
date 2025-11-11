@@ -7,4 +7,6 @@ import (
 func Routes(r *gin.Engine) {
 	AuthRoutes(r)
 	ProductRouter(r)
+	AdminRoutes(r)
+	OrderRouter(r)
 }

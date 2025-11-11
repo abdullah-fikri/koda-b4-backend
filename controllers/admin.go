@@ -7,6 +7,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// AdminOrderList godoc
+// @Summary Get all orders (Admin)
+// @Description Admin melihat semua order
+// @Tags Admin - Orders
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} models.Response
+// @Failure 500 {object} models.Response
+// @Router /admin/orders [get]
 func AdminOrderList(ctx *gin.Context) {
 	orders, err := models.GetAllOrders()
 	if err != nil {
@@ -20,6 +29,19 @@ func AdminOrderList(ctx *gin.Context) {
 	})
 }
 
+// UpdateOrderStatus godoc
+// @Summary Update order status
+// @Description Admin mengubah status pesanan
+// @Tags Admin - Orders
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Order ID"
+// @Param status body models.UpdateOrderStatusRequest true "Update Status"
+// @Success 200 {object} models.Response
+// @Failure 400 {object} models.Response
+// @Failure 500 {object} models.Response
+// @Router /admin/orders/{id}/status [put]
 func UpdateOrderStatus(ctx *gin.Context) {
 	idParam := ctx.Param("id")
 	orderID, err := strconv.Atoi(idParam)
@@ -28,10 +50,7 @@ func UpdateOrderStatus(ctx *gin.Context) {
 		return
 	}
 
-	var req struct {
-		Status string `json:"status"`
-	}
-
+	var req models.UpdateOrderStatusRequest
 	if err := ctx.BindJSON(&req); err != nil {
 		ctx.JSON(400, models.Response{Success: false, Message: err.Error()})
 		return
