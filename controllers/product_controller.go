@@ -15,7 +15,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-// admin 
+
+// admin
 func AdminProductList(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "5"))
@@ -32,13 +33,12 @@ func AdminProductList(ctx *gin.Context) {
 		Message: "admin product list",
 		Data: gin.H{
 			"products": products,
-			"total": total,
-			"page": page,
-			"limit": limit,
+			"total":    total,
+			"page":     page,
+			"limit":    limit,
 		},
 	})
 }
-
 
 // Product godoc
 // @Summary Get all products
@@ -95,8 +95,8 @@ func Product(ctx *gin.Context) {
 		return
 	}
 
-	minPriceInt,_ := strconv.Atoi(minPrice)
-	maxPriceInt,_ := strconv.Atoi(maxPrice)
+	minPriceInt, _ := strconv.Atoi(minPrice)
+	maxPriceInt, _ := strconv.Atoi(maxPrice)
 
 	products, total, err := models.GetProducts(page, limit, search, sort, minPriceInt, maxPriceInt, categoryIDs)
 	if err != nil {
@@ -160,20 +160,25 @@ func ProductDetail(c *gin.Context) {
 
 	product, err := models.GetProductByID(productID)
 	if err != nil {
-		c.JSON(400,
-			models.Response{
-				Success: false,
-				Message: "product not found",
-			})
+		c.JSON(400, models.Response{
+			Success: false,
+			Message: "product not found",
+		})
 		return
 	}
+
+	recommendations, _ := models.GetRecommendationsByCategory(product.Category, product.ID)
 
 	c.JSON(200, models.Response{
 		Success: true,
 		Message: "success",
-		Data:    product,
+		Data: gin.H{
+			"product":        product,
+			"recommendations": recommendations,
+		},
 	})
 }
+
 
 // CreateProduct godoc
 // @Summary Create new product
