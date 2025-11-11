@@ -15,6 +15,30 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+// admin 
+func AdminProductList(ctx *gin.Context) {
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "5"))
+	search := ctx.DefaultQuery("search", "")
+
+	products, total, err := models.GetProductsAdmin(page, limit, search)
+	if err != nil {
+		ctx.JSON(400, models.Response{Success: false, Message: err.Error()})
+		return
+	}
+
+	ctx.JSON(200, models.Response{
+		Success: true,
+		Message: "admin product list",
+		Data: gin.H{
+			"products": products,
+			"total": total,
+			"page": page,
+			"limit": limit,
+		},
+	})
+}
+
 
 // Product godoc
 // @Summary Get all products
@@ -29,8 +53,20 @@ import (
 func Product(ctx *gin.Context) {
 	pageStr := ctx.DefaultQuery("page", "1")
 	limitStr := ctx.DefaultQuery("limit", "10")
-	search := ctx.DefaultQuery("search", "")
+	search := ctx.DefaultQuery("q", "")
 	sort := ctx.DefaultQuery("sort", "")
+	minPrice := ctx.DefaultQuery("min_price", "")
+	maxPrice := ctx.DefaultQuery("max_price", "")
+
+	categoryStr := ctx.QueryArray("category[]")
+
+	var categoryIDs []int
+	for _, c := range categoryStr {
+		id, err := strconv.Atoi(c)
+		if err == nil {
+			categoryIDs = append(categoryIDs, id)
+		}
+	}
 
 	page, _ := strconv.Atoi(pageStr)
 	if page < 1 {
@@ -59,7 +95,10 @@ func Product(ctx *gin.Context) {
 		return
 	}
 
-	products, total, err := models.GetProducts(page, limit, search, sort)
+	minPriceInt,_ := strconv.Atoi(minPrice)
+	maxPriceInt,_ := strconv.Atoi(maxPrice)
+
+	products, total, err := models.GetProducts(page, limit, search, sort, minPriceInt, maxPriceInt, categoryIDs)
 	if err != nil {
 		ctx.JSON(400, models.Response{
 			Success: false,

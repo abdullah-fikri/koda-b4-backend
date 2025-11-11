@@ -4,6 +4,7 @@ import (
 	"backend/config"
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -11,6 +12,17 @@ type ProductSize struct {
 	SizeID   int64   `json:"size_id" binding:"required,gt=0"`
 	SizeName string  `json:"size_name"`
 	Price    float64 `json:"price" binding:"required,gte=0"`
+}
+
+type ProductAdmin struct {
+	ID          int64  `json:"id"`
+	Image       string `json:"image"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Price       int64  `json:"price"`
+	Sizes       string `json:"sizes"`
+	Method      string `json:"method"`
+	Stock       int64  `json:"stock"`
 }
 
 type Product struct {
@@ -37,7 +49,69 @@ type CreateProductRequest struct {
 	Sizes       []ProductSize `json:"sizes"`
 }
 
-func GetProducts(page, limit int, search, sort string) ([]Product, int64, error) {
+// admin version
+func GetProductsAdmin(page, limit int, search string) ([]ProductAdmin, int64, error) {
+	ctx := context.Background()
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 5
+	}
+
+	offset := (page - 1) * limit
+
+	query := `
+SELECT
+	p.id,
+	COALESCE(pi.image, '') AS image,
+	p.name,
+	p.description,
+	MIN(ps.price) AS price,
+	COALESCE(string_agg(DISTINCT s.name, ', '), '') AS sizes,
+	COALESCE(string_agg(DISTINCT m.name, ', '), '') AS methods,
+	p.stock
+FROM products p
+LEFT JOIN product_img pi ON pi.product_id = p.id
+LEFT JOIN product_size ps ON ps.product_id = p.id
+LEFT JOIN size s ON s.id = ps.size_id
+LEFT JOIN product_method pm ON pm.product_id = p.id
+LEFT JOIN method m ON m.id = pm.method_id
+WHERE p.name ILIKE '%' || $1 || '%'
+GROUP BY p.id, pi.image
+ORDER BY p.created_at DESC
+LIMIT $2 OFFSET $3;
+`
+
+	rows, err := config.Db.Query(ctx, query, search, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var products []ProductAdmin
+
+	for rows.Next() {
+		var p ProductAdmin
+		err := rows.Scan(&p.ID, &p.Image, &p.Name, &p.Description, &p.Price, &p.Sizes, &p.Method, &p.Stock)
+		if err != nil {
+			return nil, 0, err
+		}
+		products = append(products, p)
+	}
+
+	var total int64
+	err = config.Db.QueryRow(ctx, `SELECT COUNT(*) FROM products WHERE name ILIKE '%' || $1 || '%'`, search).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return products, total, nil
+}
+
+// user version
+func GetProducts(page, limit int, search, sort string, minPrice int, maxPrice int, categoryIDs []int) ([]Product, int64, error) {
 	ctx := context.Background()
 
 	if page < 1 {
@@ -49,7 +123,6 @@ func GetProducts(page, limit int, search, sort string) ([]Product, int64, error)
 	offset := (page - 1) * limit
 
 	orderByClause := "p.created_at DESC"
-
 	switch sort {
 	case "oldest":
 		orderByClause = "p.created_at ASC"
@@ -71,10 +144,8 @@ SELECT
 	COALESCE(MIN(ps.price), 0) AS min_price,
 	p.stock,
 	COALESCE(c.name, '') AS category,
-
 	COALESCE(json_agg(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '[]') AS images,
 	COALESCE(json_agg(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '[]') AS variants,
-
 	COALESCE(
 		json_agg(DISTINCT jsonb_build_object(
 			'size_id', s.id,
@@ -83,10 +154,8 @@ SELECT
 		)) FILTER (WHERE s.id IS NOT NULL),
 		'[]'
 	) AS sizes,
-
 	p.created_at,
 	p.updated_at
-
 FROM products p
 LEFT JOIN categories c ON p.category_id = c.id
 LEFT JOIN product_img pi ON pi.product_id = p.id
@@ -94,25 +163,43 @@ LEFT JOIN product_variant pv ON pv.product_id = p.id
 LEFT JOIN variant v ON v.id = pv.variant_id
 LEFT JOIN product_size ps ON ps.product_id = p.id
 LEFT JOIN size s ON s.id = ps.size_id
-
-WHERE 
-	p.name ILIKE '%' || $1 || '%'
-	OR c.name ILIKE '%' || $1 || '%'
-
-GROUP BY p.id, c.name
-
-ORDER BY ` + orderByClause + `
-LIMIT $2 OFFSET $3
+WHERE (p.name ILIKE '%' || $1 || '%' OR c.name ILIKE '%' || $1 || '%')
 `
 
-	rows, err := config.Db.Query(ctx, query, search, limit, offset)
+	args := []interface{}{search}
+	argIndex := 2
+
+	if len(categoryIDs) > 0 {
+		query += fmt.Sprintf(" AND p.category_id = ANY($%d)", argIndex)
+		args = append(args, categoryIDs)
+		argIndex++
+	}
+
+	query += `
+GROUP BY p.id, c.name
+HAVING 1 = 1
+`
+
+	if minPrice != 0 {
+		query += fmt.Sprintf(" AND COALESCE(MIN(ps.price), 0) >= $%d", argIndex)
+		args = append(args, minPrice)
+		argIndex++
+	}
+	if maxPrice != 0 {
+		query += fmt.Sprintf(" AND COALESCE(MIN(ps.price), 0) <= $%d", argIndex)
+		args = append(args, maxPrice)
+		argIndex++
+	}
+
+	query += fmt.Sprintf(" ORDER BY %s LIMIT %d OFFSET %d", orderByClause, limit, offset)
+
+	rows, err := config.Db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
 
 	var products []Product
-
 	for rows.Next() {
 		var p Product
 		var imagesJSON, variantsJSON, sizesJSON []byte
@@ -133,15 +220,42 @@ LIMIT $2 OFFSET $3
 		products = append(products, p)
 	}
 
-	var total int64
-	err = config.Db.QueryRow(ctx, `
-		SELECT COUNT(DISTINCT p.id)
+	countQuery := `
+	SELECT COUNT(*)
+	FROM (
+		SELECT p.id
 		FROM products p
 		LEFT JOIN categories c ON p.category_id = c.id
-		WHERE (p.name ILIKE '%' || $1 || '%' OR c.name ILIKE '%' || $1 || '%')`,
-		search,
-	).Scan(&total)
+		LEFT JOIN product_size ps ON ps.product_id = p.id
+		WHERE (p.name ILIKE '%' || $1 || '%' OR c.name ILIKE '%' || $1 || '%')
+	`
+	countArgs := []interface{}{search}
+	countIndex := 2
 
+	if len(categoryIDs) > 0 {
+		countQuery += fmt.Sprintf(" AND p.category_id = ANY($%d)", countIndex)
+		countArgs = append(countArgs, categoryIDs)
+		countIndex++
+	}
+
+	countQuery += " GROUP BY p.id HAVING 1 = 1"
+
+	if minPrice != 0 {
+		countQuery += fmt.Sprintf(" AND COALESCE(MIN(ps.price), 0) >= $%d", countIndex)
+		countArgs = append(countArgs, minPrice)
+		countIndex++
+	}
+
+	if maxPrice != 0 {
+		countQuery += fmt.Sprintf(" AND COALESCE(MIN(ps.price), 0) <= $%d", countIndex)
+		countArgs = append(countArgs, maxPrice)
+		countIndex++
+	}
+
+	countQuery += `) AS sub`
+
+	var total int64
+	err = config.Db.QueryRow(ctx, countQuery, countArgs...).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
