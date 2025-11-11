@@ -1,7 +1,10 @@
 package controllers
 
 import (
+	"backend/config"
 	"backend/models"
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -29,13 +32,31 @@ func Product(ctx *gin.Context) {
 	search := ctx.DefaultQuery("search", "")
 	sort := ctx.DefaultQuery("sort", "")
 
-	page, err := strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
+	page, _ := strconv.Atoi(pageStr)
+	if page < 1 {
 		page = 1
 	}
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit < 1 {
+	limit, _ := strconv.Atoi(limitStr)
+	if limit < 1 {
 		limit = 10
+	}
+
+	key := ctx.Request.RequestURI
+	var cacheData struct {
+		Products   []models.Product `json:"products"`
+		Pagination map[string]any   `json:"pagination"`
+	}
+
+	cache, err := config.Rdb.Get(context.Background(), key).Result()
+	if err == nil && cache != "" {
+		_ = json.Unmarshal([]byte(cache), &cacheData)
+
+		ctx.JSON(200, models.Response{
+			Success: true,
+			Message: "data from cache",
+			Data:    cacheData,
+		})
+		return
 	}
 
 	products, total, err := models.GetProducts(page, limit, search, sort)
@@ -49,18 +70,33 @@ func Product(ctx *gin.Context) {
 
 	totalPage := int((total + int64(limit) - 1) / int64(limit))
 
+	cacheData = struct {
+		Products   []models.Product `json:"products"`
+		Pagination map[string]any   `json:"pagination"`
+	}{
+		Products: products,
+		Pagination: map[string]any{
+			"page":       page,
+			"limit":      limit,
+			"total_data": total,
+			"total_page": totalPage,
+		},
+	}
+
+	jsonData, err := json.Marshal(cacheData)
+	if err != nil {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: "failed marshal data",
+		})
+		return
+	}
+	config.Rdb.Set(context.Background(), key, jsonData, 15*time.Minute)
+
 	ctx.JSON(200, models.Response{
 		Success: true,
-		Message: "products fetched",
-		Data: map[string]any{
-			"products": products,
-			"pagination": map[string]any{
-				"page":       page,
-				"limit":      limit,
-				"total_data": total,
-				"total_page": totalPage,
-			},
-		},
+		Message: "success data from db",
+		Data:    cacheData,
 	})
 }
 
@@ -96,9 +132,10 @@ func ProductDetail(c *gin.Context) {
 	c.JSON(200, models.Response{
 		Success: true,
 		Message: "success",
-		Data: product,
+		Data:    product,
 	})
 }
+
 // CreateProduct godoc
 // @Summary Create new product
 // @Description Admin creates a new product
@@ -130,12 +167,14 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
+	config.Rdb.Del(context.Background(), "/products")
 	ctx.JSON(201, models.Response{
 		Success: true,
 		Message: "Product created",
 		Data:    product,
 	})
 }
+
 // UpdateProduct godoc
 // @Summary Update product
 // @Description Admin updates product data
@@ -162,6 +201,8 @@ func UpdateProduct(ctx *gin.Context) {
 		ctx.JSON(500, models.Response{Success: false, Message: err.Error()})
 		return
 	}
+
+	config.Rdb.Del(context.Background(), "/products")
 
 	ctx.JSON(200, models.Response{
 		Success: true,
@@ -198,6 +239,7 @@ func DeleteProduct(ctx *gin.Context) {
 		return
 	}
 
+	config.Rdb.Del(context.Background(), "/products")
 	ctx.JSON(200, models.Response{
 		Success: true,
 		Message: "Product deleted",
@@ -329,6 +371,8 @@ func UploadProductImages(ctx *gin.Context) {
 		})
 		return
 	}
+
+	config.Rdb.Del(context.Background(), "/products")
 
 	ctx.JSON(200, models.Response{
 		Success: true,
