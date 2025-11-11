@@ -9,4 +9,5 @@ func Routes(r *gin.Engine) {
 	ProductRouter(r)
 	AdminRoutes(r)
 	OrderRouter(r)
+	FavoriteRouter(r)
 }

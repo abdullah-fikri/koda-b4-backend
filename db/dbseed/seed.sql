@@ -260,3 +260,11 @@ INSERT INTO product_variant (product_id, variant_id) VALUES
 (38, 1),(38,2),
 (39, 1),(39,2),
 (40, 1),(40,2);
+
+
+UPDATE products
+SET is_favorite = TRUE
+WHERE id IN (50, 10, 14, 24);
+
+UPDATE products id SET is_favorite = TRUE
+WHERE id In (10, 11, 20, 9);

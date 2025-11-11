@@ -1,0 +1,2 @@
+-- Active: 1762629892012@@172.17.0.3@5432@postgres
+ALTER TABLE products ADD COLUMN  is_favorite BOOLEAN NOT NULL DEFAULT false
