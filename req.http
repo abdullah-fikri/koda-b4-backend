@@ -103,7 +103,7 @@ GET http://localhost:8082/products?page=3&limit=8&search=choco&sort=price_high
 
 
 ### detail product by id
-GET http://localhost:8082/products/50
+GET http://localhost:8082/products/57
 
 
 

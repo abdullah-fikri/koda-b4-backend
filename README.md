@@ -182,3 +182,12 @@ products ||--o{ product_variant : available_in
 variant ||--o{ product_variant : variant_for
 
 ```
+
+
+### differences before using redis and after using redis
+Before using Redis, data retrieval took a little longer (17ms) compared to after using Redis (2ms).
+
+
+| Before | After |
+| ------ | ----- |
+| ![](/backend/public/img/before.png) | ![](/backend/public/img/after.png) |
