@@ -13,7 +13,8 @@ func ProductRouter(r *gin.Engine) {
 	admin.Use(middleware.Auth())
 	admin.Use(middleware.AdminOnly())
 
-	admin.POST("/product", controllers.CreateProduct)
+	admin.GET("/product", controllers.AdminProductList)
+	admin.POST("/product-create", controllers.CreateProduct)
 	admin.PUT("/product/:id", controllers.UpdateProduct)
 	admin.DELETE("/product/:id", controllers.DeleteProduct)
 	admin.POST("/product/:id/pictures", controllers.UploadProductImages)
