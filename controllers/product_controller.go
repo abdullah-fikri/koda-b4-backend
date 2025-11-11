@@ -167,7 +167,12 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
-	config.Rdb.Del(context.Background(), "/products")
+	redisCtx := context.Background()
+	iter := config.Rdb.Scan(redisCtx, 0, "/products*", 0).Iterator()
+	for iter.Next(redisCtx) {
+		config.Rdb.Del(redisCtx, iter.Val())
+	}
+
 	ctx.JSON(201, models.Response{
 		Success: true,
 		Message: "Product created",
@@ -202,7 +207,11 @@ func UpdateProduct(ctx *gin.Context) {
 		return
 	}
 
-	config.Rdb.Del(context.Background(), "/products")
+	redisCtx := context.Background()
+	iter := config.Rdb.Scan(redisCtx, 0, "/products*", 0).Iterator()
+	for iter.Next(redisCtx) {
+		config.Rdb.Del(redisCtx, iter.Val())
+	}
 
 	ctx.JSON(200, models.Response{
 		Success: true,
@@ -239,7 +248,11 @@ func DeleteProduct(ctx *gin.Context) {
 		return
 	}
 
-	config.Rdb.Del(context.Background(), "/products")
+	redisCtx := context.Background()
+	iter := config.Rdb.Scan(redisCtx, 0, "/products*", 0).Iterator()
+	for iter.Next(redisCtx) {
+		config.Rdb.Del(redisCtx, iter.Val())
+	}
 	ctx.JSON(200, models.Response{
 		Success: true,
 		Message: "Product deleted",
@@ -371,8 +384,6 @@ func UploadProductImages(ctx *gin.Context) {
 		})
 		return
 	}
-
-	config.Rdb.Del(context.Background(), "/products")
 
 	ctx.JSON(200, models.Response{
 		Success: true,
