@@ -29,7 +29,8 @@ type CartItemResponse struct {
 	ProductName string  `json:"name"`
 	Variant     string  `json:"variant"`
 	Size        string  `json:"size"`
-	Price       float64 `json:"price"`
+	Price       float64 `json:"base-price"`
+	Subtotal    float64 `json:"subtotal"`
 	Qty         int     `json:"quantity"`
 	Image       string  `json:"image"`
 }
@@ -73,7 +74,7 @@ func AddToCart(req ReqCart) (int64, error) {
 		return 0, err
 	}
 
-	// update 
+	// update
 	if checkErr == nil {
 		_, err = config.Db.Exec(ctx, `
 			UPDATE cart_items
@@ -99,7 +100,6 @@ func AddToCart(req ReqCart) (int64, error) {
 	return cartID, nil
 }
 
-
 func GetCart(userID int64) ([]CartItemResponse, error) {
 	ctx := context.Background()
 
@@ -111,6 +111,7 @@ func GetCart(userID int64) ([]CartItemResponse, error) {
 			COALESCE(v.name, '') AS variant_name,
 			COALESCE(s.name, '') AS size_name,
 			ps.price AS price,
+			ci.subtotal,
 			ci.qty,
 			(
 				SELECT pi.image 
@@ -145,6 +146,7 @@ func GetCart(userID int64) ([]CartItemResponse, error) {
 			&item.Variant,
 			&item.Size,
 			&item.Price,
+			&item.Subtotal,
 			&item.Qty,
 			&item.Image,
 		); err != nil {
