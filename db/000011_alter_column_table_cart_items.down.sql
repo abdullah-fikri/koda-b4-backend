@@ -1,0 +1,1 @@
+ALTER TABLE cart_items ADD COLUMN subtotal NUMERIC(10,2)
