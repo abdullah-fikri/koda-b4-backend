@@ -13,4 +13,5 @@ func CartRoutes(r *gin.Engine){
 
 	cart.POST("/", controllers.AddToCart)
 	cart.GET("/", controllers.GetCart)
+	cart.DELETE("/delete/:id", controllers.DeleteCart)
 }
