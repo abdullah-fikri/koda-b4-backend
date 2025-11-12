@@ -1,0 +1,9 @@
+ALTER TABLE orders
+ADD COLUMN method_id INT;
+
+ALTER TABLE orders
+ADD CONSTRAINT fk_orders_method
+FOREIGN KEY (method_id)
+REFERENCES method(id)
+ON UPDATE CASCADE
+ON DELETE RESTRICT;

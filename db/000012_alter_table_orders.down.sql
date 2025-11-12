@@ -1,0 +1,5 @@
+ALTER TABLE orders
+DROP CONSTRAINT IF EXISTS fk_orders_method;
+
+ALTER TABLE orders
+DROP COLUMN IF EXISTS method_id;
