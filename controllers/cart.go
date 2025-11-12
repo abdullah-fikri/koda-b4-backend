@@ -46,3 +46,24 @@ func AddToCart(ctx *gin.Context) {
 		Data:    cartID,
 	})
 }
+
+func GetCart(ctx *gin.Context) {
+	userData, _ := ctx.Get("user")
+	user := userData.(lib.UserPayload)
+	userID := int64(user.Id)
+
+	carts, err := models.GetCart(userID)
+	if err != nil {
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(200, models.Response{
+		Success: true,
+		Message: "Cart successfully",
+		Data:    carts,
+	})
+}
