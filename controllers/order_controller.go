@@ -1,8 +1,11 @@
 package controllers
 
 import (
+	"backend/config"
 	"backend/lib"
 	"backend/models"
+	"context"
+	"database/sql"
 	"net/http"
 	"strconv"
 
@@ -10,43 +13,92 @@ import (
 )
 
 // CreateOrder godoc
-// @Summary Create a new order
-// @Description User membuat pesanan baru
-// @Tags User - Orders
+// @Summary Create new order
+// @Description Create new order from cart
+// @Tags Orders
 // @Accept json
 // @Produce json
-// @Security BearerAuth
-// @Param order body models.CreateOrderRequest true "Order Request Body"
+// @Param order body models.CreateOrderRequest true "Order request"
 // @Success 200 {object} models.Response
 // @Failure 400 {object} models.Response
-// @Failure 500 {object} models.Response
-// @Router /user/order [post]
+// @Router /orders [post]
 func CreateOrder(ctx *gin.Context) {
-	userData, _ := ctx.Get("user")
-	user := userData.(lib.UserPayload)
-
-	userID := int64(user.Id)
+	userID := ctx.MustGet("user_id").(int64)
 
 	var req models.CreateOrderRequest
-	if err := ctx.BindJSON(&req); err != nil {
-		ctx.JSON(400, models.Response{
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, models.Response{
 			Success: false,
-			Message: err.Error()})
+			Message: "Invalid request body",
+			Data:    err.Error(),
+		})
 		return
 	}
 
-	orderID, err := models.CreateOrder(userID, req)
+	//  wajib diisi
+	if req.PaymentID == 0 || req.ShippingID == 0 || req.MethodID == 0 {
+		ctx.JSON(http.StatusBadRequest, models.Response{
+			Success: false,
+			Message: "payment_id, shipping_id, and method_id are required",
+		})
+		return
+	}
+
+	if req.CustomerName == "" || req.CustomerPhone == "" || req.CustomerAddress == "" {
+		var userData struct {
+			Name    sql.NullString
+			Phone   sql.NullString
+			Address sql.NullString
+		}
+
+		err := config.Db.QueryRow(context.Background(), `
+	SELECT username, phone, address 
+	FROM profile 
+	WHERE id = $1
+`, userID).Scan(&userData.Name, &userData.Phone, &userData.Address)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, models.Response{
+				Success: false,
+				Message: "Failed to fetch user info",
+				Data:    err.Error(),
+			})
+			return
+		}
+
+		if !userData.Address.Valid || userData.Address.String == "" {
+			ctx.JSON(http.StatusBadRequest, models.Response{
+				Success: false,
+				Message: "complete the data first",
+			})
+			return
+		}
+
+		if req.CustomerName == "" && userData.Name.Valid {
+			req.CustomerName = userData.Name.String
+		}
+		if req.CustomerPhone == "" && userData.Phone.Valid {
+			req.CustomerPhone = userData.Phone.String
+		}
+		if req.CustomerAddress == "" && userData.Address.Valid {
+			req.CustomerAddress = userData.Address.String
+		}
+
+	}
+
+	order, err := models.CreateOrder(userID, req)
 	if err != nil {
-		ctx.JSON(500, models.Response{
+		ctx.JSON(http.StatusBadRequest, models.Response{
 			Success: false,
-			Message: err.Error()})
+			Message: "Failed to create order",
+			Data:    err.Error(),
+		})
 		return
 	}
 
-	ctx.JSON(200, models.Response{
+	ctx.JSON(http.StatusOK, models.Response{
 		Success: true,
-		Message: "Order created",
-		Data:    orderID,
+		Message: "Order created successfully",
+		Data:    order,
 	})
 }
 
