@@ -156,3 +156,17 @@ func GetCart(userID int64) ([]CartItemResponse, error) {
 
 	return carts, nil
 }
+
+func DeleteCartItem(userID, cartItemID int64) error {
+	ctx := context.Background()
+
+	query := `
+		DELETE FROM cart_items 
+		WHERE id = $1 
+		AND cart_id = (
+			SELECT id FROM cart WHERE user_id = $2
+		)
+	`
+	_, err := config.Db.Exec(ctx, query, cartItemID, userID)
+	return err
+}
