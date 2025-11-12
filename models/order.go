@@ -3,24 +3,17 @@ package models
 import (
 	"backend/config"
 	"context"
+	"fmt"
 	"time"
 )
 
-type OrderItemReq struct {
-	ProductID int64   `json:"product_id"`
-	VariantID *int64  `json:"variant_id,omitempty"`
-	SizeID    *int64  `json:"size_id,omitempty"`
-	Qty       int     `json:"qty"`
-	Subtotal  float64 `json:"subtotal"`
-}
-
 type CreateOrderRequest struct {
-	PaymentID       int64          `json:"payment_id"`
-	ShippingID      int64          `json:"shipping_id"`
-	CustomerName    string         `json:"customer_name"`
-	CustomerPhone   string         `json:"customer_phone"`
-	CustomerAddress string         `json:"customer_address"`
-	Items           []OrderItemReq `json:"items"`
+	PaymentID       int64  `json:"payment_id"`
+	ShippingID      int64  `json:"shipping_id"`
+	MethodID        int64  `json:"method_id"`
+	CustomerName    string `json:"customer_name"`
+	CustomerPhone   string `json:"customer_phone"`
+	CustomerAddress string `json:"customer_address"`
 }
 
 type OrderDetail struct {
@@ -44,39 +37,128 @@ type OrderItemRes struct {
 	Subtotal    float64 `json:"subtotal"`
 }
 
-type UpdateOrderStatusRequest struct {
-	Status string `json:"status" example:"Done"`
+
+type OrderResponse struct {
+	OrderID        int64   `json:"order_id"`
+	Invoice        string  `json:"invoice"`
+	Total          float64 `json:"total"`
+	CustomerName   string  `json:"customer_name"`
+	CustomerPhone  string  `json:"customer_phone"`
+	CustomerAddress string `json:"customer_address"`
+	Status         string  `json:"status"`
 }
 
-
-func CreateOrder(userID int64, req CreateOrderRequest) (int64, error) {
+func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 	ctx := context.Background()
-
-	var orderID int64
-	err := config.Db.QueryRow(ctx,
-		`INSERT INTO orders (users_id, payment_id, shipping_id, customer_name, customer_phone, customer_address, order_date, status)
-	 VALUES ($1, $2, $3, $4, $5, $6, now(), 'pending')
-	 RETURNING id`,
-		userID, req.PaymentID, req.ShippingID, req.CustomerName, req.CustomerPhone, req.CustomerAddress,
-	).Scan(&orderID)
-
+	tx, err := config.Db.Begin(ctx)
 	if err != nil {
-		return 0, err
+		return OrderResponse{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	invoice := fmt.Sprintf("INV-%d-%d", time.Now().Unix(), userID)
+
+	var total float64
+	err = tx.QueryRow(ctx, `
+		SELECT COALESCE(SUM(ps.price * ci.qty), 0)
+		FROM cart_items ci
+		JOIN cart c ON c.id = ci.cart_id
+		LEFT JOIN product_size ps ON ps.id = ci.size_id
+		WHERE c.user_id = $1
+	`, userID).Scan(&total)
+	if err != nil {
+		return OrderResponse{}, err
 	}
 
-	for _, item := range req.Items {
-		_, err = config.Db.Exec(ctx,
-			`INSERT INTO order_items (order_id, product_id, variant_id, size_id, qty, subtotal, status)
-			 VALUES ($1,$2,$3,$4,$5,$6,'pending')`,
-			orderID, item.ProductID, item.VariantID, item.SizeID, item.Qty, item.Subtotal,
+	var orderID int64
+	err = tx.QueryRow(ctx, `
+		INSERT INTO orders (
+			users_id, payment_id, shipping_id, method_id,
+			order_date, customer_name, customer_phone, customer_address,
+			status, total, invoice
 		)
+		VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7, 'pending', $8, $9)
+		RETURNING id
+	`,
+		userID, req.PaymentID, req.ShippingID, req.MethodID,
+		req.CustomerName, req.CustomerPhone, req.CustomerAddress,
+		total, invoice,
+	).Scan(&orderID)
+	if err != nil {
+		return OrderResponse{}, err
+	}
+
+	rows, err := tx.Query(ctx, `
+		SELECT ci.product_id, ci.variant_id, ci.size_id, ci.qty, COALESCE(ps.price, 0)
+		FROM cart_items ci
+		JOIN cart c ON c.id = ci.cart_id
+		LEFT JOIN product_size ps ON ps.id = ci.size_id
+		WHERE c.user_id = $1
+	`, userID)
+	if err != nil {
+		return OrderResponse{}, err
+	}
+
+	var cartItems []struct {
+		ProductID int64
+		VariantID *int64
+		SizeID    *int64
+		Qty       int
+		Price     float64
+	}
+	for rows.Next() {
+		var item struct {
+			ProductID int64
+			VariantID *int64
+			SizeID    *int64
+			Qty       int
+			Price     float64
+		}
+		if err := rows.Scan(&item.ProductID, &item.VariantID, &item.SizeID, &item.Qty, &item.Price); err != nil {
+			rows.Close()
+			return OrderResponse{}, err
+		}
+		cartItems = append(cartItems, item)
+	}
+	rows.Close()
+
+	for _, item := range cartItems {
+		subtotal := item.Price * float64(item.Qty)
+		_, err = tx.Exec(ctx, `
+			INSERT INTO order_items (
+				order_id, product_id, variant_id, size_id, qty, subtotal, status
+			) VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+		`, orderID, item.ProductID, item.VariantID, item.SizeID, item.Qty, subtotal)
 		if err != nil {
-			return 0, err
+			return OrderResponse{}, err
 		}
 	}
 
-	return orderID, nil
+	_, err = tx.Exec(ctx, `
+		DELETE FROM cart_items WHERE cart_id IN (
+			SELECT id FROM cart WHERE user_id = $1
+		)
+	`, userID)
+	if err != nil {
+		return OrderResponse{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return OrderResponse{}, err
+	}
+
+	return OrderResponse{
+		OrderID:         orderID,
+		Invoice:         invoice,
+		Total:           total,
+		CustomerName:    req.CustomerName,
+		CustomerPhone:   req.CustomerPhone,
+		CustomerAddress: req.CustomerAddress,
+		Status:          "pending",
+	}, nil
 }
+
+
 func GetOrderHistoryByUserID(userID int64) ([]map[string]interface{}, error) {
 	ctx := context.Background()
 
@@ -139,7 +221,7 @@ func GetOrderDetail(orderID int64) (*OrderDetail, error) {
         o.status,
         p.name,
         s.name,
-        COALESCE(SUM(oi.subtotal), 0) AS total
+        o.total
     FROM orders AS o
     JOIN payment AS p ON o.payment_id = p.id
     JOIN shippings AS s ON o.shipping_id = s.id
