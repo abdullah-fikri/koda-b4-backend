@@ -56,6 +56,18 @@ func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 	}
 	defer tx.Rollback(ctx)
 
+	var exists bool
+	err = tx.QueryRow(ctx, `
+	SELECT EXISTS (
+	SELECT 1 
+	FROM cart_items ci
+	JOIN cart c ON c.id = ci.id
+	WHERE c.user_id=$1)`,userID).Scan(&exists)
+
+	if err != nil || !exists{
+		return OrderResponse{}, fmt.Errorf("cart is empty")
+	}
+
 	invoice := fmt.Sprintf("INV-%d-%d", time.Now().Unix(), userID)
 
 	var total float64
