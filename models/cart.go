@@ -98,3 +98,61 @@ func AddToCart(req ReqCart) (int64, error) {
 
 	return cartID, nil
 }
+
+
+func GetCart(userID int64) ([]CartItemResponse, error) {
+	ctx := context.Background()
+
+	rows, err := config.Db.Query(ctx, `
+		SELECT 
+			ci.id AS cart_item_id,
+			p.id AS product_id,
+			p.name AS product_name,
+			COALESCE(v.name, '') AS variant_name,
+			COALESCE(s.name, '') AS size_name,
+			ps.price AS price,
+			ci.qty,
+			(
+				SELECT pi.image 
+				FROM product_img pi 
+				WHERE pi.product_id = p.id 
+				ORDER BY pi.id ASC 
+				LIMIT 1
+			) AS image
+		FROM cart_items ci
+		JOIN cart c ON c.id = ci.cart_id
+		JOIN products p ON p.id = ci.product_id
+		LEFT JOIN product_variant pv ON pv.id = ci.variant_id
+		LEFT JOIN variant v ON v.id = pv.variant_id
+		LEFT JOIN product_size ps ON ps.id = ci.size_id
+		LEFT JOIN size s ON s.id = ps.size_id
+		WHERE c.user_id = $1
+		ORDER BY ci.id DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var carts []CartItemResponse
+
+	for rows.Next() {
+		var item CartItemResponse
+		if err := rows.Scan(
+			&item.ID,
+			&item.ProductID,
+			&item.ProductName,
+			&item.Variant,
+			&item.Size,
+			&item.Price,
+			&item.Qty,
+			&item.Image,
+		); err != nil {
+			return nil, err
+		}
+
+		carts = append(carts, item)
+	}
+
+	return carts, nil
+}
