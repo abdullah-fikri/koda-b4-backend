@@ -1,0 +1,158 @@
+POST http://localhost:8082/auth/register
+Content-Type: application/json
+
+{
+  "email": "tes1234@email.com",
+  "password": "tes123",
+  "username": "fiki",
+  "phone": "08123456789",
+  "address": "Jl. Kenangan No. 42"
+}
+
+### login  user
+POST http://localhost:8082/auth/login
+Content-Type: application/json
+
+{
+  "email": "tes1234@email.com",
+  "password": "tes123"
+}
+
+
+
+
+// PROFILE
+### get profile
+GET http://localhost:8082/user/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwMDM5NDAsImlhdCI6MTc2MjkxNzU0MH0.B5ZLPI6Ga1BaZa4dBHc8mZb77AkduHQwrZRJ5ghi_Zo
+
+
+
+### update user
+PUT http://localhost:8082/user/profile/update
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwMDM5NDAsImlhdCI6MTc2MjkxNzU0MH0.B5ZLPI6Ga1BaZa4dBHc8mZb77AkduHQwrZRJ5ghi_Zo
+Content-Type: application/json
+
+{
+  "email": "baru@example.com",
+  "password": "resetPassword",
+  "username": "nama diganti fiki",
+  "phone": "081234567999",
+  "address": "Alamat by user"
+}
+
+
+#############################################################################################
+### Get all product query user
+GET http://localhost:8082/products?page=1&limit=10&category[]=1&category[]=3&category[]=7&max_price=20000
+
+#############################################################################################
+
+
+
+### Get products dengan pagination
+GET http://localhost:8082/products?page=2&limit=5
+
+### Get products dengan search
+GET http://localhost:8082/products?q=choco
+
+### Get products + search + pagination
+GET http://localhost:8082/products?page=1&limit=10&q=choco
+
+### Get products diurutkan terbaru (default)
+GET http://localhost:8082/products?sort=newest
+
+### Urutkan dari yang paling lama
+GET http://localhost:8082/products?sort=oldest
+
+### Urutkan dari harga paling murah
+GET http://localhost:8082/products?sort=price_low
+
+### Urutkan dari harga paling mahal
+GET http://localhost:8082/products?sort=price_high
+
+### all
+GET http://localhost:8082/products?page=3&limit=8&q=choco&sort=price_high
+
+
+### detail product by id
+GET http://localhost:8082/products/10
+
+
+
+
+### create order
+POST http://localhost:8082/user/order
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwMjcwOTIsImlhdCI6MTc2Mjk0MDY5Mn0.L0GAsIKO43XD9eMPLYYkuPWFG9KbzgbYN3YPJkg9pxE
+Content-Type: application/json
+
+{
+  "payment_id": 1,
+  "shipping_id": 1,
+  "customer_name": "Budi Setiawan",
+  "customer_phone": "081234567890",
+  "customer_address": "Jl. Cendol No. 24",
+  "method_id": 1
+}
+
+
+### history
+GET http://localhost:8082/user/history
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwMDM5NDAsImlhdCI6MTc2MjkxNzU0MH0.B5ZLPI6Ga1BaZa4dBHc8mZb77AkduHQwrZRJ5ghi_Zo
+
+
+### detail order
+GET http://localhost:8082/user/order/20
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwMDM5NDAsImlhdCI6MTc2MjkxNzU0MH0.B5ZLPI6Ga1BaZa4dBHc8mZb77AkduHQwrZRJ5ghi_Zo
+
+
+### Upload Gambar
+POST http://localhost:8082/auth/1/picture
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjI3OTkxNDksImlhdCI6MTc2MjcxMjc0OX0.RbwCQcKgUwnZcIoPpq0y9C-4uOVSMKiultL8THuhaak
+Content-Type: multipart/form-data; boundary=BOUNDARY
+
+--BOUNDARY
+Content-Disposition: form-data; name="picture"; filename="tes.png"
+Content-Type: image/png
+
+< /home/fiki/Gambar/img/tes.png
+--BOUNDARY--
+
+
+### Upload user profile picture
+POST http://localhost:8082/auth/2/picture
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjI4NDY3OTIsImlhdCI6MTc2Mjc2MDM5Mn0.YMwanKCPk3CFl5n2OtCi65mDPMGXvlHNt_crG6iV9JY
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="picture"; filename="tes.png"
+Content-Type: image/png
+
+< /home/fiki/Gambar/img/tes.png
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+
+
+### favorite 
+GET http://localhost:8082/favorite-product
+
+### added cart
+POST http://localhost:8082/cart
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwMDM5NDAsImlhdCI6MTc2MjkxNzU0MH0.B5ZLPI6Ga1BaZa4dBHc8mZb77AkduHQwrZRJ5ghi_Zo
+
+  {
+    "product_id": 12,
+    "variant_id": 1,
+    "size_id": 1,
+    "quantity": 20
+  }
+
+### list cart
+GET http://localhost:8082/cart
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwMDM5NDAsImlhdCI6MTc2MjkxNzU0MH0.B5ZLPI6Ga1BaZa4dBHc8mZb77AkduHQwrZRJ5ghi_Zo
+
+### delete
+DELETE http://localhost:8082/cart/delete/13
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwMDM5NDAsImlhdCI6MTc2MjkxNzU0MH0.B5ZLPI6Ga1BaZa4dBHc8mZb77AkduHQwrZRJ5ghi_Zo
+
+

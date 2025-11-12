@@ -14,15 +14,6 @@ type ReqCart struct {
 	Subtotal  float64 `json:"subtotal"`
 }
 
-type CartItem struct {
-	ID        int64   `json:"id"`
-	ProductID int64   `json:"product_id"`
-	VariantID *int64  `json:"variant_id,omitempty"`
-	SizeID    *int64  `json:"size_id,omitempty"`
-	Qty       int     `json:"quantity"`
-	Subtotal  float64 `json:"subtotal"`
-}
-
 type CartItemResponse struct {
 	ID          int64   `json:"id"`
 	ProductID   int64   `json:"product_id"`

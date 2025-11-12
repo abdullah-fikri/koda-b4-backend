@@ -13,6 +13,10 @@ type OrderListItem struct {
 	Total  float64   `json:"total"`
 }
 
+type UpdateOrderStatusRequest struct {
+	Status string `json:"status" example:"Done"`
+}
+
 func GetAllOrders() ([]OrderListItem, error) {
 	ctx := context.Background()
 

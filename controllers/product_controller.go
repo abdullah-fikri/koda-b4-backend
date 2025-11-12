@@ -173,12 +173,11 @@ func ProductDetail(c *gin.Context) {
 		Success: true,
 		Message: "success",
 		Data: gin.H{
-			"product":        product,
+			"product":         product,
 			"recommendations": recommendations,
 		},
 	})
 }
-
 
 // CreateProduct godoc
 // @Summary Create new product
