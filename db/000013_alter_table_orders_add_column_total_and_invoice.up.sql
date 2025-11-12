@@ -1,0 +1,3 @@
+ALTER TABLE orders ADD COLUMN total NUMERIC(10,2)
+
+ALTER TABLE orders ADD COLUMN invoice TEXT

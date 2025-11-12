@@ -1,0 +1,3 @@
+ALTER TABLE orders DROP COLUMN invoice
+
+ALTER TABLE orders DROP COLUMN total
