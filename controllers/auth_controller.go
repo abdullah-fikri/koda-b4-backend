@@ -382,3 +382,60 @@ func ListUser(ctx *gin.Context) {
 		Data:    users,
 	})
 }
+
+
+func UserProfile(ctx *gin.Context){
+	userData,_ := ctx.Get("user")
+	user := userData.(lib.UserPayload)
+
+	profile, err := models.GetUserProfile(int64(user.Id))
+	if err != nil{
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+	ctx.JSON(200, models.Response{
+		Success: true,
+		Message: "success get user profile",
+		Data: profile,
+	})
+}
+
+func UpdateProfile(ctx *gin.Context) {
+	userID := ctx.MustGet("user_id").(int64)
+
+	var req models.RegisterRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(400, models.Response{
+			Success: false, 
+			Message: err.Error(),
+		})
+		return
+	}
+
+	userEmail, err := models.GetUserEmailByID(userID)
+	if err != nil {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: "user not found",
+		})
+		return
+	}
+
+	updated, err := models.UpdateUser(userEmail, req)
+	if err != nil {
+		ctx.JSON(500, models.Response{
+			Success: false, 
+			Message: err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(200, models.Response{
+		Success: true,
+		Message: "profile updated successfully",
+		Data:    updated,
+	})
+}

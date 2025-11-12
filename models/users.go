@@ -161,6 +161,7 @@ func UpdateProfilePicture(userID int64, path string) error {
 	return err
 }
 
+//admin
 func ListUser() ([]ListUserStruct, error) {
 	ctx := context.Background()
 
@@ -204,4 +205,34 @@ func ListUser() ([]ListUserStruct, error) {
 	}
 
 	return users, nil
+}
+
+//user
+func GetUserProfile(userId int64)(ListUserStruct, error){
+	ctx := context.Background()
+	query := `
+	SELECT 
+	u.id,
+	u.email,
+	p.username,
+	p.phone,
+	p.address,
+	COALESCE(p.profile_picture, '') AS profile_picture
+	FROM users u
+	LEFT JOIN profile p ON p.id = u.id
+	WHERE u.id = $1`
+
+	var u ListUserStruct
+	err := config.Db.QueryRow(ctx, query, userId).Scan(
+		&u.ID,
+		&u.Email,
+		&u.Username,
+		&u.Phone,
+		&u.Address,
+		&u.ProfilePicture,
+	)
+	if err != nil{
+		return ListUserStruct{}, err
+	}
+	return u, nil
 }
