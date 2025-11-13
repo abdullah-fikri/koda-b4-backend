@@ -12,11 +12,12 @@ import (
 var App *gin.Engine
 
 func init() {
+	config.ConnectDb()
+
 	App = gin.New()
 	App.Use(gin.Recovery())
 
 	router := App.Group("/")
-
 	router.GET("/", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, models.Response{
 			Success: true,
@@ -28,6 +29,5 @@ func init() {
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	config.ConnectDb()
 	App.ServeHTTP(w, r)
 }
