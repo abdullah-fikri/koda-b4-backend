@@ -36,7 +36,7 @@ func CreateOrder(ctx *gin.Context) {
 	}
 
 	//  wajib diisi
-	if req.PaymentID == 0 || req.ShippingID == 0 || req.MethodID == 0 {
+	if req.PaymentID == 0 || req.MethodID == 0 {
 		ctx.JSON(http.StatusBadRequest, models.Response{
 			Success: false,
 			Message: "payment_id, shipping_id, and method_id are required",
@@ -115,7 +115,14 @@ func OrderHistory(ctx *gin.Context) {
 	userData, _ := ctx.Get("user")
 	user := userData.(lib.UserPayload)
 
-	history, err := models.GetOrderHistoryByUserID(int64(user.Id))
+	month, _ := strconv.Atoi(ctx.DefaultQuery("month", "0"))
+	shippingStr := ctx.DefaultQuery("shipping_id", "")
+	if shippingStr == "" {
+		shippingStr = ctx.DefaultQuery("shippings_id", "0")
+	}
+	shippingID, _ := strconv.Atoi(shippingStr)
+
+	history, err := models.GetOrderHistoryByUserID(int64(user.Id), month, shippingID)
 	if err != nil {
 		ctx.JSON(500, models.Response{
 			Success: false,
