@@ -37,15 +37,14 @@ type OrderItemRes struct {
 	Subtotal    float64 `json:"subtotal"`
 }
 
-
 type OrderResponse struct {
-	OrderID        int64   `json:"order_id"`
-	Invoice        string  `json:"invoice"`
-	Total          float64 `json:"total"`
-	CustomerName   string  `json:"customer_name"`
-	CustomerPhone  string  `json:"customer_phone"`
-	CustomerAddress string `json:"customer_address"`
-	Status         string  `json:"status"`
+	OrderID         int64   `json:"order_id"`
+	Invoice         string  `json:"invoice"`
+	Total           float64 `json:"total"`
+	CustomerName    string  `json:"customer_name"`
+	CustomerPhone   string  `json:"customer_phone"`
+	CustomerAddress string  `json:"customer_address"`
+	Status          string  `json:"status"`
 }
 
 func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
@@ -55,18 +54,6 @@ func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 		return OrderResponse{}, err
 	}
 	defer tx.Rollback(ctx)
-
-	var exists bool
-	err = tx.QueryRow(ctx, `
-	SELECT EXISTS (
-	SELECT 1 
-	FROM cart_items ci
-	JOIN cart c ON c.id = ci.id
-	WHERE c.user_id=$1)`,userID).Scan(&exists)
-
-	if err != nil || !exists{
-		return OrderResponse{}, fmt.Errorf("cart is empty")
-	}
 
 	invoice := fmt.Sprintf("INV-%d-%d", time.Now().Unix(), userID)
 
@@ -84,18 +71,24 @@ func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 
 	var orderID int64
 	err = tx.QueryRow(ctx, `
-		INSERT INTO orders (
-			users_id, payment_id, shipping_id, method_id,
-			order_date, customer_name, customer_phone, customer_address,
-			status, total, invoice
-		)
-		VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7, 'pending', $8, $9)
-		RETURNING id
-	`,
-		userID, req.PaymentID, req.ShippingID, req.MethodID,
-		req.CustomerName, req.CustomerPhone, req.CustomerAddress,
-		total, invoice,
+	INSERT INTO orders (
+		users_id, payment_id, shipping_id, method_id,
+		order_date, customer_name, customer_phone, customer_address,
+		total, invoice
+	)
+	VALUES ($1, $2, 3, $3, NOW(), $4, $5, $6, $7, $8)
+	RETURNING id
+`,
+		userID,
+		req.PaymentID,
+		req.MethodID,
+		req.CustomerName,
+		req.CustomerPhone,
+		req.CustomerAddress,
+		total,
+		invoice,
 	).Scan(&orderID)
+
 	if err != nil {
 		return OrderResponse{}, err
 	}
@@ -138,8 +131,8 @@ func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 		subtotal := item.Price * float64(item.Qty)
 		_, err = tx.Exec(ctx, `
 			INSERT INTO order_items (
-				order_id, product_id, variant_id, size_id, qty, subtotal, status
-			) VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+				order_id, product_id, variant_id, size_id, qty, subtotal
+			) VALUES ($1, $2, $3, $4, $5, $6)
 		`, orderID, item.ProductID, item.VariantID, item.SizeID, item.Qty, subtotal)
 		if err != nil {
 			return OrderResponse{}, err
@@ -166,25 +159,50 @@ func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 		CustomerName:    req.CustomerName,
 		CustomerPhone:   req.CustomerPhone,
 		CustomerAddress: req.CustomerAddress,
-		Status:          "pending",
 	}, nil
 }
-
-
-func GetOrderHistoryByUserID(userID int64) ([]map[string]interface{}, error) {
+func GetOrderHistoryByUserID(userID int64, month, shippingID int) ([]map[string]interface{}, error) {
 	ctx := context.Background()
 
-	rows, err := config.Db.Query(ctx,
-		`SELECT 
-            o.id, o.order_date, o.status,
-            oi.product_id, oi.qty, oi.subtotal
-        FROM orders o
-        JOIN order_items oi ON o.id = oi.order_id
-        WHERE o.users_id = $1
-        ORDER BY o.order_date DESC`,
-		userID,
-	)
+	query := `
+	SELECT 
+		o.id AS order_id,
+		o.invoice,
+		o.order_date,
+		COALESCE(o.total, 0) AS total,
+		s.name AS shipping_status,
+		COALESCE(MIN(pi.image), '') AS image
+	FROM orders o
+	JOIN shippings s ON s.id = o.shipping_id
+	JOIN order_items oi ON oi.order_id = o.id
+	JOIN products p ON p.id = oi.product_id
+	LEFT JOIN product_img pi ON pi.product_id = p.id
+	WHERE o.users_id = $1
+	`
 
+	args := []interface{}{userID}
+	argIndex := 2
+
+	if month > 0 {
+		query += fmt.Sprintf(" AND EXTRACT(MONTH FROM o.order_date) = $%d", argIndex)
+		args = append(args, month)
+		argIndex++
+	} else {
+		query += " AND EXTRACT(MONTH FROM o.order_date) = (SELECT EXTRACT(MONTH FROM MAX(order_date)) FROM orders WHERE users_id = $1)"
+	}
+
+	if shippingID == 0 {
+		shippingID = 3
+	}
+	query += fmt.Sprintf(" AND o.shipping_id = $%d", argIndex)
+	args = append(args, shippingID)
+
+	query += `
+	GROUP BY o.id, o.invoice, o.order_date, o.total, s.name
+	ORDER BY o.order_date DESC
+	`
+
+	rows, err := config.Db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -195,24 +213,24 @@ func GetOrderHistoryByUserID(userID int64) ([]map[string]interface{}, error) {
 	for rows.Next() {
 		var (
 			orderID   int64
+			invoice   string
 			orderDate time.Time
+			total     float64
 			status    string
-			productID int64
-			qty       int
-			subtotal  float64
+			image     string
 		)
 
-		if err := rows.Scan(&orderID, &orderDate, &status, &productID, &qty, &subtotal); err != nil {
+		if err := rows.Scan(&orderID, &invoice, &orderDate, &total, &status, &image); err != nil {
 			return nil, err
 		}
 
 		history = append(history, map[string]interface{}{
 			"order_id":   orderID,
+			"invoice":    invoice,
 			"order_date": orderDate,
+			"total":      total,
 			"status":     status,
-			"product_id": productID,
-			"qty":        qty,
-			"subtotal":   subtotal,
+			"image":      image,
 		})
 	}
 
