@@ -41,13 +41,17 @@ func Auth() gin.HandlerFunc {
 
 	}
 }
-
-func AllowPreflight(r *gin.Engine) gin.HandlerFunc {
+func CorsMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		ctx.Header("Access-Control-Allow-Origin", "http://coffe-shop-one-eta.vercel.app")
+		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PATCH,PUT, DELETE, OPTIONS")
+		ctx.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		
 		if ctx.Request.Method == "OPTIONS" {
-			ctx.AbortWithStatus(200)
+			ctx.AbortWithStatus(200) 
 			return
 		}
+		
 		ctx.Next()
 	}
 }
