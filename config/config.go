@@ -7,13 +7,11 @@ import (
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 )
 
 var Db *pgxpool.Pool
 
 func ConnectDb() {
-	godotenv.Load()
 	conn, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal("failed Connect Database", err)
