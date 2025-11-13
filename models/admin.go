@@ -14,7 +14,7 @@ type OrderListItem struct {
 }
 
 type UpdateOrderStatusRequest struct {
-	Status string `json:"status" example:"Done"`
+	Status int `json:"status"`
 }
 
 func GetAllOrders() ([]OrderListItem, error) {
@@ -52,24 +52,18 @@ func GetAllOrders() ([]OrderListItem, error) {
 	return orders, nil
 }
 
-func UpdateOrderStatus(orderID int64, status string) error {
+func UpdateOrderStatus(orderID int64, status int) error {
 	ctx := context.Background()
 
 	_, err := config.Db.Exec(ctx, `
 		UPDATE orders
-		SET status = $1
+		SET shipping_id = $1
 		WHERE id = $2
 	`, status, orderID)
 
 	if err != nil {
 		return err
 	}
-
-	_, err = config.Db.Exec(ctx, `
-		UPDATE order_items
-		SET status = $1
-		WHERE order_id = $2
-	`, status, orderID)
 
 	return err
 }
