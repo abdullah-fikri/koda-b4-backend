@@ -5,7 +5,6 @@ import (
 	"backend/models"
 	"backend/routes"
 	"net/http"
-	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,6 +12,8 @@ import (
 var App *gin.Engine
 
 func init() {
+	config.ConnectDb()
+	config.Redis()
 	App = gin.New()
 	App.Use(gin.Recovery())
 
@@ -28,9 +29,5 @@ func init() {
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	if config.Db == nil {
-		os.Getenv("DATABASE_URL")
-		config.ConnectDb()
-	}
 	App.ServeHTTP(w, r)
 }
