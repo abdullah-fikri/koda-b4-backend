@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"backend/config"
@@ -11,6 +11,7 @@ import (
 var app *gin.Engine
 
 func init() {
+	app = gin.New()
 	config.ConnectDb()
 	config.Redis()
 
