@@ -5,16 +5,15 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/joho/godotenv"
 )
 
 type UserPayload struct {
-	Id int `json:"id"`
+	Id   int    `json:"id"`
 	Role string `json:"role"`
 	jwt.RegisteredClaims
 }
+
 func GeneratedTokens(id int, role string) string {
-	godotenv.Load()
 	secretKey := []byte(os.Getenv("APP_SECRET"))
 
 	claims := UserPayload{
@@ -32,7 +31,6 @@ func GeneratedTokens(id int, role string) string {
 }
 
 func VerifyToken(token string) (UserPayload, error) {
-	godotenv.Load()
 	secretKey := []byte(os.Getenv("APP_SECRET"))
 	parsedToken, err := jwt.ParseWithClaims(token, &UserPayload{}, func(t *jwt.Token) (any, error) {
 		return secretKey, nil
