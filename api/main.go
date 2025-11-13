@@ -1,4 +1,4 @@
-package api
+package main
 
 import (
 	"backend/config"
@@ -8,17 +8,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var App *gin.Engine
+var app *gin.Engine
 
 func init() {
 	config.ConnectDb()
 	config.Redis()
 
-	App = gin.Default()
-
-	routes.Routes(App)
+	app = gin.Default()
+	routes.Routes(app)
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	App.ServeHTTP(w, r)
+	app.ServeHTTP(w, r)
 }
