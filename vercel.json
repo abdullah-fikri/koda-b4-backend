@@ -9,8 +9,8 @@
   ],
   "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/api/entrypoint.go"
+      "src": "/(.*)",
+      "dest": "/api/entrypoint.go"
     }
   ]
 }
