@@ -3,14 +3,14 @@
   "trailingSlash": false,
   "builds": [
     {
-      "src": "api/entrypoint.go",
+      "src": "api/main.go",
       "use": "@vercel/go"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/api/entrypoint.go"
+      "source": "/(.*)",
+      "destination": "/api/main.go"
     }
   ]
 }
