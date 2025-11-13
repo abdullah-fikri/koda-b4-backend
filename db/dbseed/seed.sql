@@ -431,3 +431,17 @@ INSERT INTO product_method (product_id, method_id) VALUES
 (50, 1),
 (50, 2),
 (50, 3);
+
+
+
+INSERT INTO discount (name, start_discount, end_discount, percent_discount)
+VALUES
+('Spesial 11.11', '2025-11-1', '2025-12-1', 20),
+('Spesial 12.12', '2025-12-01', '2025-12-29', 40);
+
+
+
+INSERT INTO product_discount (product_id, discount_id)
+VALUES
+(5, 1), (6, 1), (7,1),(20, 1), (22, 1), (26, 1),
+(23, 2), (28, 2), (30, 2), (2, 2), (11, 2);
