@@ -18,6 +18,7 @@ type CreateOrderRequest struct {
 
 type OrderDetail struct {
 	ID              int64          `json:"order_id"`
+	Invoice         string         `json:"invoice"`
 	CustomerName    string         `json:"customer_name"`
 	CustomerPhone   string         `json:"customer_phone"`
 	CustomerAddress string         `json:"customer_address"`
@@ -30,11 +31,12 @@ type OrderDetail struct {
 }
 
 type OrderItemRes struct {
-	ProductName string  `json:"product_name"`
-	Variant     string  `json:"variant"`
-	Size        string  `json:"size"`
-	Qty         int     `json:"qty"`
-	Subtotal    float64 `json:"subtotal"`
+	ProductName   string  `json:"product_name"`
+	Variant       string  `json:"variant"`
+	Size          string  `json:"size"`
+	Qty           int     `json:"qty"`
+	BasePrice     float64 `json:"base_price"`
+	DiscountPrice float64 `json:"discount_rice"`
 }
 
 type OrderResponse struct {
@@ -49,36 +51,46 @@ type OrderResponse struct {
 
 func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 	ctx := context.Background()
+
+	var total float64
+	err := config.Db.QueryRow(ctx, `
+		SELECT COALESCE(SUM(
+			CASE 
+				WHEN d.id IS NOT NULL 
+					AND NOW() BETWEEN d.start_discount AND d.end_discount
+				THEN (ps.price - (ps.price * d.percent_discount / 100)) * ci.qty
+				ELSE ps.price * ci.qty
+			END
+		), 0)
+		FROM cart_items ci
+		JOIN cart c ON c.id = ci.cart_id
+		LEFT JOIN product_size ps ON ps.id = ci.size_id
+		LEFT JOIN product_discount pd ON pd.product_id = ci.product_id
+		LEFT JOIN discount d ON d.id = pd.discount_id
+		WHERE c.user_id = $1
+	`, userID).Scan(&total)
+	if err != nil {
+		return OrderResponse{}, fmt.Errorf("failed to calculate total: %w", err)
+	}
+	
 	tx, err := config.Db.Begin(ctx)
 	if err != nil {
-		return OrderResponse{}, err
+		return OrderResponse{}, fmt.Errorf("failed to start transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
 	invoice := fmt.Sprintf("INV-%d-%d", time.Now().Unix(), userID)
 
-	var total float64
-	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(SUM(ps.price * ci.qty), 0)
-		FROM cart_items ci
-		JOIN cart c ON c.id = ci.cart_id
-		LEFT JOIN product_size ps ON ps.id = ci.size_id
-		WHERE c.user_id = $1
-	`, userID).Scan(&total)
-	if err != nil {
-		return OrderResponse{}, err
-	}
-
 	var orderID int64
 	err = tx.QueryRow(ctx, `
-	INSERT INTO orders (
-		users_id, payment_id, shipping_id, method_id,
-		order_date, customer_name, customer_phone, customer_address,
-		total, invoice
-	)
-	VALUES ($1, $2, 3, $3, NOW(), $4, $5, $6, $7, $8)
-	RETURNING id
-`,
+		INSERT INTO orders (
+			users_id, payment_id, shipping_id, method_id,
+			order_date, customer_name, customer_phone, customer_address,
+			total, invoice
+		)
+		VALUES ($1, $2, 3, $3, NOW(), $4, $5, $6, $7, $8)
+		RETURNING id
+	`,
 		userID,
 		req.PaymentID,
 		req.MethodID,
@@ -88,68 +100,90 @@ func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 		total,
 		invoice,
 	).Scan(&orderID)
-
 	if err != nil {
-		return OrderResponse{}, err
+		return OrderResponse{}, fmt.Errorf("failed to insert order: %w", err)
 	}
 
 	rows, err := tx.Query(ctx, `
-		SELECT ci.product_id, ci.variant_id, ci.size_id, ci.qty, COALESCE(ps.price, 0)
+		SELECT 
+			ci.product_id,
+			ci.variant_id,
+			ci.size_id,
+			ci.qty,
+			ps.price AS base_price,
+			COALESCE(d.percent_discount, 0) AS discount_percent,
+			CASE 
+				WHEN d.id IS NOT NULL 
+					AND NOW() BETWEEN d.start_discount AND d.end_discount
+				THEN ps.price - (ps.price * d.percent_discount / 100)
+				ELSE ps.price
+			END AS discount_price
 		FROM cart_items ci
 		JOIN cart c ON c.id = ci.cart_id
 		LEFT JOIN product_size ps ON ps.id = ci.size_id
+		LEFT JOIN product_discount pd ON pd.product_id = ci.product_id
+		LEFT JOIN discount d ON d.id = pd.discount_id
 		WHERE c.user_id = $1
 	`, userID)
 	if err != nil {
-		return OrderResponse{}, err
+		return OrderResponse{}, fmt.Errorf("failed to fetch cart items: %w", err)
 	}
 
-	var cartItems []struct {
-		ProductID int64
-		VariantID *int64
-		SizeID    *int64
-		Qty       int
-		Price     float64
+	var items []struct {
+		ProductID         int64
+		VariantID, SizeID *int64
+		Qty               int
+		BasePrice         float64
+		DiscountPercent   float64
+		DiscountPrice     float64
 	}
+
 	for rows.Next() {
-		var item struct {
-			ProductID int64
-			VariantID *int64
-			SizeID    *int64
-			Qty       int
-			Price     float64
+		var i struct {
+			ProductID         int64
+			VariantID, SizeID *int64
+			Qty               int
+			BasePrice         float64
+			DiscountPercent   float64
+			DiscountPrice     float64
 		}
-		if err := rows.Scan(&item.ProductID, &item.VariantID, &item.SizeID, &item.Qty, &item.Price); err != nil {
+		if err := rows.Scan(&i.ProductID, &i.VariantID, &i.SizeID, &i.Qty, &i.BasePrice, &i.DiscountPercent, &i.DiscountPrice); err != nil {
 			rows.Close()
-			return OrderResponse{}, err
+			return OrderResponse{}, fmt.Errorf("failed to scan cart item: %w", err)
 		}
-		cartItems = append(cartItems, item)
+		items = append(items, i)
 	}
 	rows.Close()
 
-	for _, item := range cartItems {
-		subtotal := item.Price * float64(item.Qty)
+	if err := rows.Err(); err != nil {
+		return OrderResponse{}, fmt.Errorf("error while reading rows: %w", err)
+	}
+
+	for _, i := range items {
+		subtotal := i.DiscountPrice * float64(i.Qty)
 		_, err = tx.Exec(ctx, `
 			INSERT INTO order_items (
-				order_id, product_id, variant_id, size_id, qty, subtotal
-			) VALUES ($1, $2, $3, $4, $5, $6)
-		`, orderID, item.ProductID, item.VariantID, item.SizeID, item.Qty, subtotal)
+				order_id, product_id, variant_id, size_id, qty, 
+				base_price, discount_price, discount_percent, subtotal
+			)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		`, orderID, i.ProductID, i.VariantID, i.SizeID, i.Qty,
+			i.BasePrice, i.DiscountPrice, i.DiscountPercent, subtotal)
 		if err != nil {
-			return OrderResponse{}, err
+			return OrderResponse{}, fmt.Errorf("failed to insert order item: %w", err)
 		}
 	}
 
 	_, err = tx.Exec(ctx, `
-		DELETE FROM cart_items WHERE cart_id IN (
-			SELECT id FROM cart WHERE user_id = $1
-		)
+		DELETE FROM cart_items 
+		WHERE cart_id IN (SELECT id FROM cart WHERE user_id = $1)
 	`, userID)
 	if err != nil {
-		return OrderResponse{}, err
+		return OrderResponse{}, fmt.Errorf("failed to clear cart: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return OrderResponse{}, err
+		return OrderResponse{}, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return OrderResponse{
@@ -159,8 +193,10 @@ func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 		CustomerName:    req.CustomerName,
 		CustomerPhone:   req.CustomerPhone,
 		CustomerAddress: req.CustomerAddress,
+		Status:          "On Progress",
 	}, nil
 }
+
 func GetOrderHistoryByUserID(userID int64, month, shippingID int) ([]map[string]interface{}, error) {
 	ctx := context.Background()
 
@@ -244,11 +280,12 @@ func GetOrderDetail(orderID int64) (*OrderDetail, error) {
 	err := config.Db.QueryRow(ctx, `
     SELECT 
         o.id,
+		o.invoice,
         o.customer_name,
         o.customer_phone,
         o.customer_address,
         o.order_date,
-        o.status,
+        s.name AS shipping_status,
         p.name,
         s.name,
         o.total
@@ -260,6 +297,7 @@ func GetOrderDetail(orderID int64) (*OrderDetail, error) {
     GROUP BY o.id, p.name, s.name
 `, orderID).Scan(
 		&order.ID,
+		&order.Invoice,
 		&order.CustomerName,
 		&order.CustomerPhone,
 		&order.CustomerAddress,
@@ -280,7 +318,8 @@ func GetOrderDetail(orderID int64) (*OrderDetail, error) {
 			COALESCE(v.name, '-') AS variant,
 			COALESCE(sz.name, '-') AS size,
 			oi.qty,
-			oi.subtotal
+			oi.discount_price,
+			pr.price
 		FROM order_items oi
 		JOIN products pr ON oi.product_id = pr.id
 		LEFT JOIN variant v ON oi.variant_id = v.id
@@ -295,7 +334,7 @@ func GetOrderDetail(orderID int64) (*OrderDetail, error) {
 
 	for rows.Next() {
 		var item OrderItemRes
-		if err := rows.Scan(&item.ProductName, &item.Variant, &item.Size, &item.Qty, &item.Subtotal); err != nil {
+		if err := rows.Scan(&item.ProductName, &item.Variant, &item.Size, &item.Qty, &item.DiscountPrice,&item.BasePrice); err != nil {
 			return nil, err
 		}
 		order.Items = append(order.Items, item)
