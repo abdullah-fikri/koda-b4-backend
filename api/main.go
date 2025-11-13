@@ -1,24 +1,33 @@
-package api
+package handler
 
 import (
 	"backend/config"
+	"backend/models"
 	"backend/routes"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-var app *gin.Engine
+var App *gin.Engine
 
 func init() {
-	app = gin.New()
-	config.ConnectDb()
-	config.Redis()
+	App = gin.New()
+	App.Use(gin.Recovery())
 
-	app = gin.Default()
-	routes.Routes(app)
+	router := App.Group("/")
+
+	router.GET("/", func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, models.Response{
+			Success: true,
+			Message: "Backend is running well",
+		})
+	})
+
+	routes.Routes(App)
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	app.ServeHTTP(w, r)
+	config.ConnectDb()
+	App.ServeHTTP(w, r)
 }
