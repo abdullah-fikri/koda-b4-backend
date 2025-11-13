@@ -3,8 +3,8 @@ package config
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -12,16 +12,30 @@ import (
 var Db *pgxpool.Pool
 
 func ConnectDb() {
-	conn, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
-	if err != nil {
-		log.Fatal("failed Connect Database", err)
+	if Db != nil {
+		return
 	}
 
-	err = conn.Ping(context.Background())
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		fmt.Println("DATABASE_URL not found")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	conn, err := pgxpool.New(ctx, dsn)
 	if err != nil {
-		log.Fatal("cannot ping database:", err)
+		fmt.Println("failed to create pool:", err)
+		return
+	}
+
+	if err = conn.Ping(ctx); err != nil {
+		fmt.Println("cannot ping database:", err)
+		return
 	}
 
 	Db = conn
-	fmt.Println("sukses ")
+	fmt.Println("database connected")
 }
