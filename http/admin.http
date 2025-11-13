@@ -44,11 +44,11 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6I
 
 
 ### update status order
-PUT http://localhost:8082/admin/orders/10/status
+PUT http://localhost:8082/admin/orders/34/status
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzYzMDMwNzIyLCJpYXQiOjE3NjI5NDQzMjJ9.CK812WHqD9_a5KTbkiMgNi9rmGtUTbUG32CGvL2mkkg
 
 {
-  "status": "Done"
+  "status": 1
 }
 
 

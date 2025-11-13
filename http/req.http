@@ -15,7 +15,7 @@ Content-Type: application/json
 
 {
   "email": "tes1234@email.com",
-  "password": "tes123"
+  "password": "resetPassword"
 }
 
 
@@ -88,7 +88,6 @@ Content-Type: application/json
 
 {
   "payment_id": 1,
-  "shipping_id": 1,
   "customer_name": "Budi Setiawan",
   "customer_phone": "081234567890",
   "customer_address": "Jl. Cendol No. 24",
@@ -97,13 +96,13 @@ Content-Type: application/json
 
 
 ### history
-GET http://localhost:8082/user/history
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwMDM5NDAsImlhdCI6MTc2MjkxNzU0MH0.B5ZLPI6Ga1BaZa4dBHc8mZb77AkduHQwrZRJ5ghi_Zo
+GET http://localhost:8082/user/history?month=11&shippings_id=3
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwODc0MDQsImlhdCI6MTc2MzAwMTAwNH0.moDU0vC1KJqsfF0zJ0wobWQjWHVnxvw6o_gsnpaYaY0
 
 
 ### detail order
-GET http://localhost:8082/user/order/20
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwMDM5NDAsImlhdCI6MTc2MjkxNzU0MH0.B5ZLPI6Ga1BaZa4dBHc8mZb77AkduHQwrZRJ5ghi_Zo
+GET http://localhost:8082/user/order/48
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwODc0MDQsImlhdCI6MTc2MzAwMTAwNH0.moDU0vC1KJqsfF0zJ0wobWQjWHVnxvw6o_gsnpaYaY0
 
 
 ### Upload Gambar
@@ -138,21 +137,21 @@ GET http://localhost:8082/favorite-product
 
 ### added cart
 POST http://localhost:8082/cart
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwMDM5NDAsImlhdCI6MTc2MjkxNzU0MH0.B5ZLPI6Ga1BaZa4dBHc8mZb77AkduHQwrZRJ5ghi_Zo
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwOTAzNTIsImlhdCI6MTc2MzAwMzk1Mn0.cA5EKqhQsZlNkmHNaymrEUj5UHEEdM0od-PlnH7k_pM
 
   {
-    "product_id": 12,
+    "product_id": 11,
     "variant_id": 1,
     "size_id": 1,
-    "quantity": 20
+    "quantity":1
   }
 
 ### list cart
 GET http://localhost:8082/cart
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwMDM5NDAsImlhdCI6MTc2MjkxNzU0MH0.B5ZLPI6Ga1BaZa4dBHc8mZb77AkduHQwrZRJ5ghi_Zo
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwOTAzNTIsImlhdCI6MTc2MzAwMzk1Mn0.cA5EKqhQsZlNkmHNaymrEUj5UHEEdM0od-PlnH7k_pM
 
 ### delete
 DELETE http://localhost:8082/cart/delete/13
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwMDM5NDAsImlhdCI6MTc2MjkxNzU0MH0.B5ZLPI6Ga1BaZa4dBHc8mZb77AkduHQwrZRJ5ghi_Zo
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJleHAiOjE3NjMwOTAzNTIsImlhdCI6MTc2MzAwMzk1Mn0.cA5EKqhQsZlNkmHNaymrEUj5UHEEdM0od-PlnH7k_pM
 
 
