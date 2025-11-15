@@ -43,9 +43,10 @@ func Auth() gin.HandlerFunc {
 }
 func CorsMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		ctx.Header("Access-Control-Allow-Origin", "http://coffe-shop-one-eta.vercel.app")
-		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PATCH,PUT, DELETE, OPTIONS")
+		ctx.Header("Access-Control-Allow-Origin", "*")
+		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
 		ctx.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		ctx.Header("Access-Control-Allow-Credentials", "true")
 		
 		if ctx.Request.Method == "OPTIONS" {
 			ctx.AbortWithStatus(200) 
