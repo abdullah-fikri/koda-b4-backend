@@ -46,7 +46,6 @@ func CorsMiddleware() gin.HandlerFunc {
 		ctx.Header("Access-Control-Allow-Origin", "*")
 		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
 		ctx.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		ctx.Header("Access-Control-Allow-Credentials", "true")
 		
 		if ctx.Request.Method == "OPTIONS" {
 			ctx.AbortWithStatus(200) 
