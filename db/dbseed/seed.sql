@@ -1,4 +1,5 @@
--- Active: 1762874543459@@172.17.0.4@5432@postgres
+-- Active: 1763145100773@@localhost@5432@postgres
+
 
 INSERT INTO users (email, password, role) VALUES 
 ('admin123@gmail.com', '$argon2id$v=19$m=65536,t=3,p=4$E2+eLrHdKlxJ5+BXfhJvZQ$Gw3hB3Ftw0o8K7vYyff92T7ySQjZi+TtqLLRhtD4L5M', 'admin')
