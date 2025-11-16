@@ -131,53 +131,42 @@ func LoginUser(ctx *gin.Context) {
 // @Failure 400 {object} models.Response
 // @Failure 403 {object} models.Response
 // @Router /user/{id} [put]
-func UpdateUser(ctx *gin.Context) {
-	idParam := ctx.Param("id")
-	targetID, err := strconv.ParseInt(idParam, 10, 64)
-	if err != nil {
-		ctx.JSON(400, models.Response{Success: false, Message: "invalid user id"})
-		return
-	}
+func AdminUpdateUser(ctx *gin.Context) {
+    idParam := ctx.Param("id")
+    targetID, err := strconv.ParseInt(idParam, 10, 64)
+    if err != nil {
+        ctx.JSON(400, models.Response{Success: false, Message: "invalid user id"})
+        return
+    }
 
-	userID := ctx.MustGet("user_id").(int64)
-	role := ctx.MustGet("role").(string)
+    role := ctx.MustGet("role").(string)
+    if role != "admin" {
+        ctx.JSON(403, models.Response{
+            Success: false,
+            Message: "only admin can update user",
+        })
+        return
+    }
 
-	if role != "admin" && userID != targetID {
-		ctx.JSON(403, models.Response{
-			Success: false,
-			Message: "you cannot update another user's data",
-		})
-		return
-	}
+    var req models.AdminUpdateUserRequest
+    if err := ctx.ShouldBindJSON(&req); err != nil {
+        ctx.JSON(400, models.Response{Success: false, Message: err.Error()})
+        return
+    }
 
-	var req models.RegisterRequest
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(400, models.Response{Success: false, Message: err.Error()})
-		return
-	}
+    updated, err := models.AdminUpdateUserByID(targetID, req)
+    if err != nil {
+        ctx.JSON(500, models.Response{Success: false, Message: err.Error()})
+        return
+    }
 
-	userEmail, err := models.GetUserEmailByID(targetID)
-	if err != nil {
-		ctx.JSON(400, models.Response{
-			Success: false,
-			Message: "user not found",
-		})
-		return
-	}
+    config.Rdb.Del(ctx, "/users")
 
-	updated, err := models.UpdateUser(userEmail, req)
-	if err != nil {
-		ctx.JSON(500, models.Response{Success: false, Message: err.Error()})
-		return
-	}
-
-	config.Rdb.Del(context.Background(), "/users")
-
-	ctx.JSON(200, models.Response{
-		Success: true,
-		Message: "update succesfully",
-		Data:    updated,
-	})
+    ctx.JSON(200, models.Response{
+        Success: true,
+        Message: "admin update user successfully",
+        Data:    updated,
+    })
 }
 
 // UploadPicture godoc
@@ -406,28 +395,19 @@ func UserProfile(ctx *gin.Context){
 func UpdateProfile(ctx *gin.Context) {
 	userID := ctx.MustGet("user_id").(int64)
 
-	var req models.RegisterRequest
+	var req models.UpdateUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(400, models.Response{
-			Success: false, 
+			Success: false,
 			Message: err.Error(),
 		})
 		return
 	}
 
-	userEmail, err := models.GetUserEmailByID(userID)
-	if err != nil {
-		ctx.JSON(400, models.Response{
-			Success: false,
-			Message: "user not found",
-		})
-		return
-	}
-
-	updated, err := models.UpdateUser(userEmail, req)
+	updated, err := models.UpdateUserByID(userID, req)
 	if err != nil {
 		ctx.JSON(500, models.Response{
-			Success: false, 
+			Success: false,
 			Message: err.Error(),
 		})
 		return

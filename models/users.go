@@ -36,6 +36,25 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type UpdateUserRequest struct {
+    Username string `json:"username" binding:"required,min=3,max=20"`
+    Phone    string `json:"phone" binding:"omitempty,min=10,max=15"`
+    Address  string `json:"address" binding:"omitempty,max=100"`
+    Password string `json:"password" binding:"omitempty,min=6,max=32"`
+}
+
+
+type AdminUpdateUserRequest struct {
+    Username string `json:"username" binding:"required,min=3,max=20"`
+    Phone    string `json:"phone" binding:"omitempty,min=10,max=15"`
+    Address  string `json:"address" binding:"omitempty,max=100"`
+    Password string `json:"password" binding:"omitempty,min=6,max=32"`
+    Role     string `json:"role" binding:"omitempty"`
+}
+
+
+
+
 func Register(req RegisterRequest) (*User, error) {
 	ctx := context.Background()
 
@@ -84,15 +103,26 @@ func Login(email string) (*User, error) {
 
 	return &user, nil
 }
-func UpdateUser(email string, req RegisterRequest) (*User, error) {
+//admin
+func AdminUpdateUserByID(id int64, req AdminUpdateUserRequest) (*User, error) {
 	ctx := context.Background()
 
 	if req.Password != "" {
 		hashedPassword := lib.HashPassword(req.Password)
 
 		_, err := config.Db.Exec(ctx,
-			`UPDATE users SET password=$1 WHERE email=$2`,
-			hashedPassword, email,
+			`UPDATE users SET password=$1 WHERE id=$2`,
+			hashedPassword, id,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if req.Role != "" {
+		_, err := config.Db.Exec(ctx,
+			`UPDATE users SET role=$1 WHERE id=$2`,
+			req.Role, id,
 		)
 		if err != nil {
 			return nil, err
@@ -100,10 +130,10 @@ func UpdateUser(email string, req RegisterRequest) (*User, error) {
 	}
 
 	_, err := config.Db.Exec(ctx,
-		`UPDATE profile 
+		`UPDATE profile
 		 SET username=$1, phone=$2, address=$3
-		 WHERE users_id = (SELECT id FROM users WHERE email=$4)`,
-		req.Username, req.Phone, req.Address, email,
+		 WHERE users_id=$4`,
+		req.Username, req.Phone, req.Address, id,
 	)
 	if err != nil {
 		return nil, err
@@ -111,8 +141,8 @@ func UpdateUser(email string, req RegisterRequest) (*User, error) {
 
 	var user User
 	err = config.Db.QueryRow(ctx,
-		`SELECT id, email, role FROM users WHERE email=$1`,
-		email,
+		`SELECT id, email, role FROM users WHERE id=$1`,
+		id,
 	).Scan(&user.ID, &user.Email, &user.Role)
 
 	if err != nil {
@@ -133,6 +163,45 @@ func GetUserEmailByID(id int64) (string, error) {
 
 	return email, nil
 }
+
+//user
+func UpdateUserByID(id int64, req UpdateUserRequest) (*User, error) {
+    ctx := context.Background()
+
+    if req.Password != "" {
+        hashedPassword := lib.HashPassword(req.Password)
+
+        _, err := config.Db.Exec(ctx,
+            `UPDATE users SET password=$1 WHERE id=$2`,
+            hashedPassword, id,
+        )
+        if err != nil {
+            return nil, err
+        }
+    }
+
+    _, err := config.Db.Exec(ctx,
+        `UPDATE profile 
+         SET username=$1, phone=$2, address=$3
+         WHERE users_id=$4`,
+        req.Username, req.Phone, req.Address, id,
+    )
+    if err != nil {
+        return nil, err
+    }
+
+    var user User
+    err = config.Db.QueryRow(ctx,
+        `SELECT id, email, role FROM users WHERE id=$1`,
+        id,
+    ).Scan(&user.ID, &user.Email, &user.Role)
+    if err != nil {
+        return nil, err
+    }
+
+    return &user, nil
+}
+
 
 func Forgot(email string) (*User, error) {
 	ctx := context.Background()

@@ -13,7 +13,7 @@ func AdminRoutes(r *gin.Engine) {
 
 	//auth
 	admin.POST("/:id/picture", controllers.UploadPicture)
-	admin.PUT("/:id/update", controllers.UpdateUser)
+	admin.PUT("/:id/update", controllers.AdminUpdateUser)
 	admin.GET("/user", controllers.ListUser)
 
 	//products
