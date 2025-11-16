@@ -106,28 +106,43 @@ func Product(ctx *gin.Context) {
 
     totalPage := int((total + int64(limit) - 1) / int64(limit))
 
+    queryParams := ctx.Request.URL.Query()
+    queryParams.Set("limit", strconv.Itoa(limit))
+
+    var nextURL, prevURL string
+
+    if page > 1 {
+        queryParams.Set("page", strconv.Itoa(page-1))
+        prevURL = ctx.Request.URL.Path + "?" + queryParams.Encode()
+    }
+
+    if page < totalPage {
+        queryParams.Set("page", strconv.Itoa(page+1))
+        nextURL = ctx.Request.URL.Path + "?" + queryParams.Encode()
+    }
+
+    pagination := map[string]any{
+        "page":       page,
+        "limit":      limit,
+        "total_data": total,
+        "total_page": totalPage,
+        "next":       nextURL,
+        "prev":       prevURL,
+    }
+
     cacheData := struct {
         Products   []models.Product `json:"products"`
         Pagination map[string]any   `json:"pagination"`
     }{
-        Products: products,
-        Pagination: map[string]any{
-            "page":       page,
-            "limit":      limit,
-            "total_data": total,
-            "total_page": totalPage,
-        },
+        Products:   products,
+        Pagination: pagination,
     }
 
     if isCachable {
         jsonData, err := json.Marshal(cacheData)
-		if err != nil {
-			ctx.JSON(400, models.Response{
-				Success: false,
-				Message: "failed marshal data",
-			})
-		}
-        config.Rdb.Set(context.Background(), cacheKey, jsonData, 15*time.Minute)
+        if err == nil {
+            config.Rdb.Set(context.Background(), cacheKey, jsonData, 15*time.Minute)
+        }
     }
 
     ctx.JSON(200, models.Response{
