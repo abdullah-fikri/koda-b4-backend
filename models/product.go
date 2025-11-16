@@ -271,7 +271,7 @@ SELECT
   p.id,
   p.name,
   p.description,
-  COALESCE(MIN(ps.price), 0) AS min_price,
+  COALESCE(MIN(ps.price), p.price) AS min_price,
   p.stock,
   COALESCE(c.name, '') AS category,
 
