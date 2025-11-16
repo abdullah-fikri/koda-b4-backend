@@ -4,6 +4,7 @@ import (
 	"backend/config"
 	"backend/lib"
 	"context"
+	"errors"
 )
 
 type ListUserStruct struct {
@@ -216,17 +217,31 @@ func Forgot(email string) (*User, error) {
 
 	return &user, nil
 }
-
-func UpdateProfilePicture(userID int64, path string) error {
+// user
+func UpdateUserProfilePicture(userID int64, path string) error {
 	ctx := context.Background()
-
 	_, err := config.Db.Exec(ctx,
-		`UPDATE profile
-         SET profile_picture = $1, updated_at = NOW()
-         WHERE users_id = $2`,
+		`UPDATE profile 
+		 SET profile_picture = $1, updated_at = NOW()
+		 WHERE users_id = $2`,
 		path, userID,
 	)
+	return err
+}
 
+// admin
+func AdminUpdateUserProfilePicture(targetUserID int64, path string) error {
+	if targetUserID <= 0 {
+		return errors.New("invalid target user id")
+	}
+
+	ctx := context.Background()
+	_, err := config.Db.Exec(ctx,
+		`UPDATE profile 
+		 SET profile_picture = $1, updated_at = NOW()
+		 WHERE users_id = $2`,
+		path, targetUserID,
+	)
 	return err
 }
 

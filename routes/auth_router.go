@@ -16,4 +16,5 @@ func AuthRoutes(r *gin.Engine) {
 	user.Use(middleware.Auth())
 	user.GET("/profile", controllers.UserProfile)
 	user.PUT("/profile/update", controllers.UpdateProfile)
+	user.POST("/profile/upload", controllers.UploadUserPicture)
 }

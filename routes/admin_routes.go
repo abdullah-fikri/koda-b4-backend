@@ -12,7 +12,7 @@ func AdminRoutes(r *gin.Engine) {
 	admin.Use(middleware.Auth(), middleware.AdminOnly())
 
 	//auth
-	admin.POST("/:id/picture", controllers.UploadPicture)
+	admin.POST("/user/:id/profile/upload", controllers.AdminUploadUserPicture)
 	admin.PUT("/:id/update", controllers.AdminUpdateUser)
 	admin.GET("/user", controllers.ListUser)
 

@@ -8,6 +8,7 @@ import (
 
 func Routes(r *gin.Engine) {
 	r.Use(middleware.CorsMiddleware())
+	r.MaxMultipartMemory = 25 << 20
 	AuthRoutes(r)
 	ProductRouter(r)
 	AdminRoutes(r)
