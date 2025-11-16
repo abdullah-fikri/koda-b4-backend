@@ -141,7 +141,10 @@ SELECT
 	p.id,
 	p.name,
 	p.description,
-	COALESCE(MIN(ps.price), 0) AS min_price,
+	COALESCE(
+		(SELECT MIN(price) FROM product_size WHERE product_id = p.id),
+		p.price
+	  ) AS min_price,
 	p.stock,
 	COALESCE(c.name, '') AS category,
 	COALESCE(json_agg(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '[]') AS images,
@@ -301,12 +304,12 @@ SELECT
   p.updated_at
 
 FROM products p
-JOIN categories c ON p.category_id = c.id
-JOIN product_img pi ON pi.product_id = p.id
-JOIN product_variant pv ON pv.product_id = p.id
-JOIN variant v ON v.id = pv.variant_id
-JOIN product_size ps ON ps.product_id = p.id
-JOIN size s ON s.id = ps.size_id
+LEFT JOIN categories c ON p.category_id = c.id
+LEFT JOIN product_img pi ON pi.product_id = p.id
+LEFT JOIN product_variant pv ON pv.product_id = p.id
+LEFT JOIN variant v ON v.id = pv.variant_id
+LEFT JOIN product_size ps ON ps.product_id = p.id
+LEFT JOIN size s ON s.id = ps.size_id
 
 WHERE p.id = $1
 
