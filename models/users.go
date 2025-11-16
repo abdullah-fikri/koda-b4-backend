@@ -217,6 +217,19 @@ func Forgot(email string) (*User, error) {
 
 	return &user, nil
 }
+
+func UpdateUserPassword(email, hashedPassword string) error {
+	ctx := context.Background()
+
+	_, err := config.Db.Exec(ctx,
+		`UPDATE users SET password=$1 WHERE email=$2`,
+		hashedPassword, email,
+	)
+
+	return err
+}
+
+
 // user
 func UpdateUserProfilePicture(userID int64, path string) error {
 	ctx := context.Background()

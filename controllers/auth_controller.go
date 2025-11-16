@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"slices"
@@ -347,4 +348,62 @@ func UpdateProfile(ctx *gin.Context) {
 		Message: "profile updated successfully",
 		Data:    updated,
 	})
+}
+
+
+func ForgotPassword(c *gin.Context) {
+	var body struct {
+		Email string `json:"email"`
+	}
+
+	if err := c.BindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"message": "invalid request"})
+		return
+	}
+
+	user, _ := models.Forgot(body.Email)
+
+	otp := fmt.Sprintf("%06d", rand.Intn(999999))
+
+	config.Rdb.Set(context.Background(), "otp:"+user.Email, otp, 10*time.Minute)
+
+	c.JSON(200, gin.H{
+		"message": "OTP created (dev mode)",
+		"otp":     otp,
+	})
+}
+
+func ResetPassword(c *gin.Context) {
+	var body struct {
+		OTP     string `json:"otp"`
+		NewPass string `json:"new_password"`
+	}
+
+	if err := c.BindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"message": "invalid request"})
+		return
+	}
+
+	ctx := context.Background()
+
+	keys, _ := config.Rdb.Keys(ctx, "otp:*").Result()
+
+	var email string
+	for _, key := range keys {
+		val, _ := config.Rdb.Get(ctx, key).Result()
+		if val == body.OTP {
+			email = strings.TrimPrefix(key, "otp:")
+			break
+		}
+	}
+
+	if email == "" {
+		c.JSON(400, gin.H{"message": "invalid or expired OTP"})
+		return
+	}
+	hash := lib.HashPassword(body.NewPass)
+	config.Db.Exec(ctx, `UPDATE users SET password=$1 WHERE email=$2`, hash, email)
+	config.Rdb.Del(ctx, "otp:"+email)
+
+	c.JSON(200, gin.H{"message": "password updated"})
 }

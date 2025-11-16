@@ -11,6 +11,8 @@ func AuthRoutes(r *gin.Engine) {
 	auth := r.Group("/auth")
 	auth.POST("/register", controllers.RegisterUser)
 	auth.POST("/login", controllers.LoginUser)
+    auth.POST("/forgot-password", controllers.ForgotPassword)
+    auth.POST("/reset-password", controllers.ResetPassword)
 
 	user := r.Group("/user")
 	user.Use(middleware.Auth())
