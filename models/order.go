@@ -52,8 +52,23 @@ type OrderResponse struct {
 func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 	ctx := context.Background()
 
-	var total float64
+	var cartItemCount int
 	err := config.Db.QueryRow(ctx, `
+		SELECT COUNT(ci.id)
+		FROM cart_items ci
+		JOIN cart c ON c.id = ci.cart_id
+		WHERE c.user_id = $1
+	`, userID).Scan(&cartItemCount)
+	if err != nil {
+		return OrderResponse{}, fmt.Errorf("failed to check cart: %w", err)
+	}
+
+	if cartItemCount == 0 {
+		return OrderResponse{}, fmt.Errorf("cannot create order: cart is empty")
+	}
+
+	var total float64
+	err = config.Db.QueryRow(ctx, `
 		SELECT COALESCE(SUM(
 			CASE 
 				WHEN d.id IS NOT NULL 
