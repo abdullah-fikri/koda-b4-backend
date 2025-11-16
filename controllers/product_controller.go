@@ -51,93 +51,97 @@ func AdminProductList(ctx *gin.Context) {
 // @Success 200 {object} models.Response
 // @Router /products [get]
 func Product(ctx *gin.Context) {
-	pageStr := ctx.DefaultQuery("page", "1")
-	limitStr := ctx.DefaultQuery("limit", "10")
-	search := ctx.DefaultQuery("q", "")
-	sort := ctx.DefaultQuery("sort", "")
-	minPrice := ctx.DefaultQuery("min_price", "")
-	maxPrice := ctx.DefaultQuery("max_price", "")
+    pageStr := ctx.DefaultQuery("page", "1")
+    limitStr := ctx.DefaultQuery("limit", "10")
+    search := ctx.DefaultQuery("q", "")
+    sort := ctx.DefaultQuery("sort", "")
+    minPrice := ctx.DefaultQuery("min_price", "")
+    maxPrice := ctx.DefaultQuery("max_price", "")
 
-	categoryStr := ctx.QueryArray("category[]")
+    categoryStr := ctx.QueryArray("category[]")
 
-	var categoryIDs []int
-	for _, c := range categoryStr {
-		id, err := strconv.Atoi(c)
-		if err == nil {
-			categoryIDs = append(categoryIDs, id)
+    var categoryIDs []int
+    for _, c := range categoryStr {
+        id, err := strconv.Atoi(c)
+        if err == nil {
+            categoryIDs = append(categoryIDs, id)
+        }
+    }
+
+    page, _ := strconv.Atoi(pageStr)
+    if page < 1 { page = 1 }
+    limit, _ := strconv.Atoi(limitStr)
+    if limit < 1 { limit = 10 }
+
+    isCachable := (search == "" && sort == "" && minPrice == "" && maxPrice == "" && len(categoryIDs) == 0)
+    var cacheKey string
+
+    if isCachable {
+        cacheKey = fmt.Sprintf("products:page:%d:limit:%d", page, limit)
+        var cacheData struct {
+            Products   []models.Product `json:"products"`
+            Pagination map[string]any   `json:"pagination"`
+        }
+
+        cache, err := config.Rdb.Get(context.Background(), cacheKey).Result()
+        if err == nil && cache != "" {
+            _ = json.Unmarshal([]byte(cache), &cacheData)
+            ctx.JSON(200, models.Response{
+                Success: true,
+                Message: "data from cache",
+                Data:    cacheData,
+            })
+            return
+        }
+    }
+
+    products, total, err := models.GetProducts(page, limit, search, sort, parseInt(minPrice), parseInt(maxPrice), categoryIDs)
+    if err != nil {
+        ctx.JSON(400, models.Response{
+            Success: false,
+            Message: err.Error(),
+        })
+        return
+    }
+
+    totalPage := int((total + int64(limit) - 1) / int64(limit))
+
+    cacheData := struct {
+        Products   []models.Product `json:"products"`
+        Pagination map[string]any   `json:"pagination"`
+    }{
+        Products: products,
+        Pagination: map[string]any{
+            "page":       page,
+            "limit":      limit,
+            "total_data": total,
+            "total_page": totalPage,
+        },
+    }
+
+    if isCachable {
+        jsonData, err := json.Marshal(cacheData)
+		if err != nil {
+			ctx.JSON(400, models.Response{
+				Success: false,
+				Message: "failed marshal data",
+			})
 		}
-	}
+        config.Rdb.Set(context.Background(), cacheKey, jsonData, 15*time.Minute)
+    }
 
-	page, _ := strconv.Atoi(pageStr)
-	if page < 1 {
-		page = 1
-	}
-	limit, _ := strconv.Atoi(limitStr)
-	if limit < 1 {
-		limit = 10
-	}
-
-	key := ctx.Request.RequestURI
-	var cacheData struct {
-		Products   []models.Product `json:"products"`
-		Pagination map[string]any   `json:"pagination"`
-	}
-
-	cache, err := config.Rdb.Get(context.Background(), key).Result()
-	if err == nil && cache != "" {
-		_ = json.Unmarshal([]byte(cache), &cacheData)
-
-		ctx.JSON(200, models.Response{
-			Success: true,
-			Message: "data from cache",
-			Data:    cacheData,
-		})
-		return
-	}
-
-	minPriceInt, _ := strconv.Atoi(minPrice)
-	maxPriceInt, _ := strconv.Atoi(maxPrice)
-
-	products, total, err := models.GetProducts(page, limit, search, sort, minPriceInt, maxPriceInt, categoryIDs)
-	if err != nil {
-		ctx.JSON(400, models.Response{
-			Success: false,
-			Message: err.Error(),
-		})
-		return
-	}
-
-	totalPage := int((total + int64(limit) - 1) / int64(limit))
-
-	cacheData = struct {
-		Products   []models.Product `json:"products"`
-		Pagination map[string]any   `json:"pagination"`
-	}{
-		Products: products,
-		Pagination: map[string]any{
-			"page":       page,
-			"limit":      limit,
-			"total_data": total,
-			"total_page": totalPage,
-		},
-	}
-
-	jsonData, err := json.Marshal(cacheData)
-	if err != nil {
-		ctx.JSON(400, models.Response{
-			Success: false,
-			Message: "failed marshal data",
-		})
-		return
-	}
-	config.Rdb.Set(context.Background(), key, jsonData, 15*time.Minute)
-
-	ctx.JSON(200, models.Response{
-		Success: true,
-		Message: "success data from db",
-		Data:    cacheData,
-	})
+    ctx.JSON(200, models.Response{
+        Success: true,
+        Message: "success data from db",
+        Data:    cacheData,
+    })
 }
+
+func parseInt(s string) int {
+    v, _ := strconv.Atoi(s)
+    return v
+}
+
 
 // ProductDetail godoc
 // @Summary Get product detail by ID
