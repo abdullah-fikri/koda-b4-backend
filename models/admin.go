@@ -16,21 +16,21 @@ type OrderListItem struct {
 type UpdateOrderStatusRequest struct {
 	Status int `json:"status"`
 }
-
 func GetAllOrders() ([]OrderListItem, error) {
 	ctx := context.Background()
 
 	query := `
-	SELECT
-	    o.id,
-	    o.order_date,
-	    o.status,
-	    COALESCE(SUM(oi.subtotal), 0) AS total
-	FROM orders o
-	JOIN order_items oi ON oi.order_id = o.id
-	GROUP BY o.id
-	ORDER BY o.order_date DESC;
-`
+		SELECT
+		    o.id,
+		    o.order_date,
+		    s.name AS shipping_name,
+		    COALESCE(SUM(oi.subtotal), 0) AS total
+		FROM orders o
+		JOIN order_items oi ON oi.order_id = o.id
+		LEFT JOIN shippings s ON s.id = o.shipping_id
+		GROUP BY o.id, s.name
+		ORDER BY o.order_date DESC;
+	`
 
 	rows, err := config.Db.Query(ctx, query)
 	if err != nil {
