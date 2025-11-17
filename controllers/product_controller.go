@@ -7,10 +7,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -61,14 +62,14 @@ func Product(ctx *gin.Context) {
 
     var categoryIDs []int
     for _, c := range categoryStr {
-        id, err := strconv.Atoi(c)
-        if err == nil {
+        if id, err := strconv.Atoi(c); err == nil {
             categoryIDs = append(categoryIDs, id)
         }
     }
 
     page, _ := strconv.Atoi(pageStr)
     if page < 1 { page = 1 }
+
     limit, _ := strconv.Atoi(limitStr)
     if limit < 1 { limit = 10 }
 
@@ -86,10 +87,10 @@ func Product(ctx *gin.Context) {
         if err == nil && cache != "" {
             _ = json.Unmarshal([]byte(cache), &cacheData)
             ctx.JSON(200, models.Response{
-                Success: true,
-                Message: "data from cache",
-				Pagination: cacheData.Pagination,
-                Data:    cacheData.Products,
+                Success:    true,
+                Message:    "data from cache",
+                Pagination: cacheData.Pagination,
+                Data:       cacheData.Products,
             })
             return
         }
@@ -106,56 +107,25 @@ func Product(ctx *gin.Context) {
 
     totalPage := int((total + int64(limit) - 1) / int64(limit))
 
-	queryParams := ctx.Request.URL.Query()
-	queryParams.Set("limit", strconv.Itoa(limit))
-	
-	baseURL := "http://hifiy-backend.vercel.app" + ctx.Request.URL.Path
-	var nextURL, prevURL string
-	if page > 1 {
-		qp := ctx.Request.URL.Query()
-		qp.Set("limit", strconv.Itoa(limit))
-		qp.Set("page", strconv.Itoa(page-1))
-		prevURL = baseURL + "?" + qp.Encode()
-	}
-
-	if page < totalPage {
-		qp := ctx.Request.URL.Query()
-		qp.Set("limit", strconv.Itoa(limit))
-		qp.Set("page", strconv.Itoa(page+1))
-		nextURL = baseURL + "?" + qp.Encode()
-	}
-	
-    pagination := map[string]any{
-        "page":       page,
-        "limit":      limit,
-        "total_data": total,
-        "total_page": totalPage,
-        "next":       nextURL,
-        "prev":       prevURL,
+    rawQuery := ctx.Request.URL.Query()
+    extraQuery := url.Values{}
+    for k, v := range rawQuery {
+        extraQuery[k] = append([]string{}, v...)
     }
 
-	cacheData := struct {
-		Products   []models.Product `json:"products"`
-		Pagination map[string]any   `json:"pagination"`
-	}{
-		Products:   products,
-		Pagination: pagination,
-	}
+    baseURL := os.Getenv("APP_BASE_URL")
+    path := ctx.Request.URL.Path
 
-    if isCachable {
-        jsonData, err := json.Marshal(cacheData)
-        if err == nil {
-            config.Rdb.Set(context.Background(), cacheKey, jsonData, 15*time.Minute)
-        }
-    }
+    pagination := lib.Hateoas(baseURL, path, page, limit, totalPage, extraQuery)
 
     ctx.JSON(200, models.Response{
-        Success: true,
-        Message: "success data from db",
-		Pagination: cacheData.Pagination,
-        Data:    cacheData.Products,
+        Success:    true,
+        Message:    "success from db",
+        Pagination: pagination,
+        Data:       products,
     })
 }
+
 
 func parseInt(s string) int {
     v, _ := strconv.Atoi(s)
