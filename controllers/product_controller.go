@@ -88,7 +88,8 @@ func Product(ctx *gin.Context) {
             ctx.JSON(200, models.Response{
                 Success: true,
                 Message: "data from cache",
-                Data:    cacheData,
+				Pagination: cacheData.Pagination,
+                Data:    cacheData.Products,
             })
             return
         }
@@ -129,13 +130,13 @@ func Product(ctx *gin.Context) {
         "prev":       prevURL,
     }
 
-    cacheData := struct {
-        Products   []models.Product `json:"products"`
-        Pagination map[string]any   `json:"pagination"`
-    }{
-        Products:   products,
-        Pagination: pagination,
-    }
+	cacheData := struct {
+		Products   []models.Product `json:"products"`
+		Pagination map[string]any   `json:"pagination"`
+	}{
+		Products:   products,
+		Pagination: pagination,
+	}
 
     if isCachable {
         jsonData, err := json.Marshal(cacheData)
@@ -147,7 +148,8 @@ func Product(ctx *gin.Context) {
     ctx.JSON(200, models.Response{
         Success: true,
         Message: "success data from db",
-        Data:    cacheData,
+		Pagination: cacheData.Pagination,
+        Data:    cacheData.Products,
     })
 }
 
