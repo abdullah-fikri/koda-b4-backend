@@ -106,21 +106,25 @@ func Product(ctx *gin.Context) {
 
     totalPage := int((total + int64(limit) - 1) / int64(limit))
 
-    queryParams := ctx.Request.URL.Query()
-    queryParams.Set("limit", strconv.Itoa(limit))
+	queryParams := ctx.Request.URL.Query()
+	queryParams.Set("limit", strconv.Itoa(limit))
+	
+	baseURL := "http://hifiy-backend.vercel.app" + ctx.Request.URL.Path
+	var nextURL, prevURL string
+	if page > 1 {
+		qp := ctx.Request.URL.Query()
+		qp.Set("limit", strconv.Itoa(limit))
+		qp.Set("page", strconv.Itoa(page-1))
+		prevURL = baseURL + "?" + qp.Encode()
+	}
 
-    var nextURL, prevURL string
-
-    if page > 1 {
-        queryParams.Set("page", strconv.Itoa(page-1))
-        prevURL = ctx.Request.URL.Path + "?" + queryParams.Encode()
-    }
-
-    if page < totalPage {
-        queryParams.Set("page", strconv.Itoa(page+1))
-        nextURL = ctx.Request.URL.Path + "?" + queryParams.Encode()
-    }
-
+	if page < totalPage {
+		qp := ctx.Request.URL.Query()
+		qp.Set("limit", strconv.Itoa(limit))
+		qp.Set("page", strconv.Itoa(page+1))
+		nextURL = baseURL + "?" + qp.Encode()
+	}
+	
     pagination := map[string]any{
         "page":       page,
         "limit":      limit,
