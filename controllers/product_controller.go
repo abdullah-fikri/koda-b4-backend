@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -50,80 +51,101 @@ func AdminProductList(ctx *gin.Context) {
 // @Param limit query int false "Items per page"
 // @Success 200 {object} models.Response
 // @Router /products [get]
+
+type ProductCache struct {
+	Products   []models.Product    `json:"products"`
+	Pagination *lib.PaginationData `json:"pagination"`
+}
+
 func Product(ctx *gin.Context) {
-    pageStr := ctx.DefaultQuery("page", "1")
-    limitStr := ctx.DefaultQuery("limit", "10")
-    search := ctx.DefaultQuery("q", "")
-    sort := ctx.DefaultQuery("sort", "")
-    minPrice := ctx.DefaultQuery("min_price", "")
-    maxPrice := ctx.DefaultQuery("max_price", "")
+	pageStr := ctx.DefaultQuery("page", "1")
+	limitStr := ctx.DefaultQuery("limit", "10")
+	search := ctx.DefaultQuery("q", "")
+	sort := ctx.DefaultQuery("sort", "")
+	minPrice := ctx.DefaultQuery("min_price", "")
+	maxPrice := ctx.DefaultQuery("max_price", "")
+	categoryStr := ctx.QueryArray("category[]")
 
-    categoryStr := ctx.QueryArray("category[]")
+	var categoryIDs []int
+	for _, c := range categoryStr {
+		if id, err := strconv.Atoi(c); err == nil {
+			categoryIDs = append(categoryIDs, id)
+		}
+	}
 
-    var categoryIDs []int
-    for _, c := range categoryStr {
-        if id, err := strconv.Atoi(c); err == nil {
-            categoryIDs = append(categoryIDs, id)
-        }
-    }
+	page, _ := strconv.Atoi(pageStr)
+	if page < 1 {
+		page = 1
+	}
 
-    page, _ := strconv.Atoi(pageStr)
-    if page < 1 { page = 1 }
+	limit, _ := strconv.Atoi(limitStr)
+	if limit < 1 {
+		limit = 10
+	}
 
-    limit, _ := strconv.Atoi(limitStr)
-    if limit < 1 { limit = 10 }
+	isCachable := (search == "" && sort == "" && minPrice == "" && maxPrice == "" && len(categoryIDs) == 0)
+	var cacheKey string
 
-    isCachable := (search == "" && sort == "" && minPrice == "" && maxPrice == "" && len(categoryIDs) == 0)
-    var cacheKey string
+	if isCachable {
+		cacheKey = fmt.Sprintf("products:page:%d:limit:%d", page, limit)
 
-    if isCachable {
-        cacheKey = fmt.Sprintf("products:page:%d:limit:%d", page, limit)
-        var cacheData struct {
-            Products   []models.Product `json:"products"`
-            Pagination map[string]any   `json:"pagination"`
-        }
+		var cacheData ProductCache
+		cacheString, err := config.Rdb.Get(context.Background(), cacheKey).Result()
+		if err == nil && cacheString != "" {
+			_ = json.Unmarshal([]byte(cacheString), &cacheData)
 
-        cache, err := config.Rdb.Get(context.Background(), cacheKey).Result()
-        if err == nil && cache != "" {
-            _ = json.Unmarshal([]byte(cache), &cacheData)
-            ctx.JSON(200, models.Response{
-                Success:    true,
-                Message:    "data from cache",
-                Pagination: cacheData.Pagination,
-                Data:       cacheData.Products,
-            })
-            return
-        }
-    }
+			ctx.JSON(200, models.Response{
+				Success:    true,
+				Message:    "success from cache",
+				Pagination: cacheData.Pagination,
+				Data:       cacheData.Products,
+			})
+			return
+		}
+	}
 
-    products, total, err := models.GetProducts(page, limit, search, sort, parseInt(minPrice), parseInt(maxPrice), categoryIDs)
-    if err != nil {
-        ctx.JSON(400, models.Response{
-            Success: false,
-            Message: err.Error(),
-        })
-        return
-    }
+	products, total, err := models.GetProducts(page, limit, search, sort, parseInt(minPrice), parseInt(maxPrice), categoryIDs)
+	if err != nil {
+		ctx.JSON(400, models.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
 
-    totalPage := int((total + int64(limit) - 1) / int64(limit))
+	totalPage := int((total + int64(limit) - 1) / int64(limit))
 
-    rawQuery := ctx.Request.URL.Query()
-    extraQuery := url.Values{}
-    for k, v := range rawQuery {
-        extraQuery[k] = append([]string{}, v...)
-    }
+	rawQuery := ctx.Request.URL.Query()
+	extraQuery := url.Values{}
+	for k, v := range rawQuery {
+		extraQuery[k] = append([]string{}, v...)
+	}
 
-    baseURL := os.Getenv("APP_BASE_URL")
-    path := ctx.Request.URL.Path
+	baseURL := os.Getenv("APP_BASE_URL")
+	path := ctx.Request.URL.Path
 
-    pagination := lib.Hateoas(baseURL, path, page, limit, totalPage, extraQuery)
+	hateoasURL := lib.Hateoas(baseURL, path, page, limit, totalPage, extraQuery)
 
-    ctx.JSON(200, models.Response{
-        Success:    true,
-        Message:    "success from db",
-        Pagination: pagination,
-        Data:       products,
-    })
+	pagination := lib.Pagination(page, limit, totalPage, total, hateoasURL)
+
+	if isCachable {
+		cacheValue := ProductCache{
+			Products:   products,
+			Pagination: pagination,
+		}
+
+		jsonData, err := json.Marshal(cacheValue)
+		if err == nil {
+			config.Rdb.Set(context.Background(), cacheKey, jsonData, 15*time.Minute)
+		}
+	}
+
+	ctx.JSON(200, models.Response{
+		Success:    true,
+		Message:    "success from db",
+		Pagination: pagination,
+		Data:       products,
+	})
 }
 
 

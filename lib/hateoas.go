@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func Hateoas(baseURL string, path string, page int, limit int, totalPage int, extraQuery url.Values) map[string]any {
+func Hateoas(baseURL string, path string, page int, limit int, totalPage int, extraQuery url.Values) map[string]string {
 	makeQuery := func(pageValue int) string {
 		q := url.Values{}
 		for key, val := range extraQuery {
@@ -27,10 +27,10 @@ func Hateoas(baseURL string, path string, page int, limit int, totalPage int, ex
 		nextURL = fmt.Sprintf("%s%s?%s", baseURL, path, makeQuery(page+1))
 	}
 
-	return map[string]any{
-		"page":       page,
-		"limit":      limit,
-		"total_page": totalPage,
+	return map[string]string{
+		"page":       strconv.Itoa(page),
+		"limit":      strconv.Itoa(limit),
+		"total_page": strconv.Itoa(totalPage),
 		"prev":       prevURL,
 		"next":       nextURL,
 	}
