@@ -24,6 +24,8 @@ func main() {
 	config.Redis()
 	r := gin.Default()
 
+	//akses ke gambar lokal
+	r.Static("/static", "./uploads")
 	routes.Routes(r)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

@@ -2,11 +2,11 @@ package controllers
 
 import (
 	"backend/config"
+	"backend/lib"
 	"backend/models"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -350,30 +350,33 @@ func UploadProductImages(ctx *gin.Context) {
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	allowedExt := []string{".jpg", ".jpeg", ".png"}
 
-	isAllowed := false
+	valid := false
 	for _, e := range allowedExt {
 		if ext == e {
-			isAllowed = true
+			valid = true
 			break
 		}
 	}
-
-	if !isAllowed {
+	if !valid {
 		ctx.JSON(400, models.Response{Success: false, Message: "invalid file extension. Only .jpg, .jpeg, .png allowed"})
 		return
 	}
 
-	newFilename := fmt.Sprintf("product-%d-%d%s", productID, time.Now().Unix(), ext)
-	uploadPath := "./uploads/products/" + newFilename
-	os.MkdirAll("./uploads/products", 0755)
-
-	if err := ctx.SaveUploadedFile(file, uploadPath); err != nil {
-		ctx.JSON(500, models.Response{Success: false, Message: "failed to save file: " + err.Error()})
+	src, err := file.Open()
+	if err != nil {
+		ctx.JSON(500, models.Response{Success: false, Message: "cannot open file: " + err.Error()})
 		return
 	}
+	defer src.Close()
 
-	if err := models.UploadImgProduct(int64(productID), newFilename); err != nil {
-		os.Remove(uploadPath)
+	// cloudinary
+	uploadedURL, err := lib.UploadImage(src)
+	if err != nil {
+		ctx.JSON(500, models.Response{Success: false, Message: "failed upload to cloudinary: " + err.Error()})
+		return
+	}
+	
+	if err := models.UploadImgProduct(int64(productID), uploadedURL); err != nil {
 		ctx.JSON(500, models.Response{Success: false, Message: err.Error()})
 		return
 	}
@@ -381,6 +384,6 @@ func UploadProductImages(ctx *gin.Context) {
 	ctx.JSON(200, models.Response{
 		Success: true,
 		Message: "upload success",
-		Data:    gin.H{"image": newFilename},
+		Data:    gin.H{"image_url": uploadedURL},
 	})
 }

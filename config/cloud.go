@@ -2,18 +2,21 @@ package config
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/cloudinary/cloudinary-go/v2"
 )
 
-func CloudinaryInit() (*cloudinary.Cloudinary, context.Context, error) {
-	cld, err := cloudinary.NewFromURL(os.Getenv("CLOUDINARY_URL"))
-	if err != nil {
-		return nil, nil, fmt.Errorf("CLOUDINARY_URL not found in environment")
+func CloudinaryInit() (*cloudinary.Cloudinary, context.Context) {
+	url := os.Getenv("CLOUDINARY_URL")
+	if url == "" {
+		return nil, context.Background() 
 	}
 
-	ctx := context.Background()
-	return cld, ctx, nil
+	cld, err := cloudinary.NewFromURL(url)
+	if err != nil {
+		return nil, context.Background() 
+	}
+
+	return cld, context.Background()
 }
