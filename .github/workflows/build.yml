@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Test SSH + Pull Image
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -41,4 +41,4 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           envs: GHCR_USERNAME
           script: |
-            docker pull ghcr.io/$GHCR_USERNAME/koda-b4-backend:latest
+            sudo docker pull ghcr.io/$GHCR_USERNAME/koda-b4-backend:latest
