@@ -27,8 +27,8 @@ type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password,omitempty"`
 	Username string `json:"username" binding:"required"`
-	Phone    string `json:"phone" binding:"required"`
-	Address  string `json:"address" binding:"required"`
+	Phone    string `json:"phone" binding:"omitempty"`
+	Address  string `json:"address" binding:"omitempty"`
 	Role     string `json:"-"`
 }
 
