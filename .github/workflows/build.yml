@@ -38,7 +38,8 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key: ${{ secrets.KEY }}
+          port: 9020
           envs: GHCR_USERNAME
           script: |
-            sudo docker pull ghcr.io/$GHCR_USERNAME/koda-b4-backend:latest
+            docker pull ghcr.io/$GHCR_USERNAME/koda-b4-backend:latest
