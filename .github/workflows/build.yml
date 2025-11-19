@@ -27,3 +27,18 @@ jobs:
       - name: Push Docker image
         run: |
           docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/koda-b4-backend:latest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Test SSH + Pull Image
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: GHCR_USERNAME
+          script: |
+            docker pull ghcr.io/$GHCR_USERNAME/koda-b4-backend:latest
