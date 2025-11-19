@@ -40,6 +40,5 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.KEY }}
           port: 9020
-          envs: GHCR_USERNAME
           script: |
-            docker pull ghcr.io/$GHCR_USERNAME/koda-b4-backend:latest
+            docker pull ghcr.io/abdullah-fikri/koda-b4-backend:latest
