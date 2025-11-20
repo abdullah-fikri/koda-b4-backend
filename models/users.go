@@ -311,7 +311,7 @@ func GetUserProfile(userId int64)(ListUserStruct, error){
 	query := `
 	SELECT 
 	u.id,
-	u.created_at
+	u.created_at,
 	u.email,
 	p.username,
 	p.phone,
