@@ -318,7 +318,7 @@ func GetUserProfile(userId int64)(ListUserStruct, error){
 	p.address,
 	COALESCE(p.profile_picture, '') AS profile_picture
 	FROM users u
-	LEFT JOIN profile p ON p.id = u.id
+	LEFT JOIN profile p ON p.users_id = u.id
 	WHERE u.id = $1`
 
 	var u ListUserStruct
