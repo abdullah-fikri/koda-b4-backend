@@ -15,14 +15,14 @@ type ListUserStruct struct {
 	Phone          string `json:"phone"`
 	Address        string `json:"address"`
 	ProfilePicture string `json:"profile_picture"`
+	CreatedAt string `json:"since"`
 }
 
 type User struct {
 	ID       int64  `json:"id"`
 	Email    string `json:"email"`
-	Password string `json:"password"`
+	Password string `json:"-"`
 	Role     string `json:"role"`
-	CreatedAt string `json:"since"`
 }
 type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
@@ -93,11 +93,11 @@ func Login(email string) (*User, error) {
 
 	var user User
 	err := config.Db.QueryRow(ctx,
-		`SELECT id, email, password, role, created_at
+		`SELECT id, email, password, role
 		 FROM users
 		 WHERE email = $1`,
 		email,
-	).Scan(&user.ID, &user.Email, &user.Password, &user.Role, &user.CreatedAt)
+	).Scan(&user.ID, &user.Email, &user.Password, &user.Role)
 
 	if err != nil {
 		return nil, err
@@ -311,6 +311,7 @@ func GetUserProfile(userId int64)(ListUserStruct, error){
 	query := `
 	SELECT 
 	u.id,
+	u.created_at
 	u.email,
 	p.username,
 	p.phone,
@@ -323,6 +324,7 @@ func GetUserProfile(userId int64)(ListUserStruct, error){
 	var u ListUserStruct
 	err := config.Db.QueryRow(ctx, query, userId).Scan(
 		&u.ID,
+		&u.CreatedAt,
 		&u.Email,
 		&u.Username,
 		&u.Phone,
