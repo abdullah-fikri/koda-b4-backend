@@ -20,8 +20,9 @@ type ListUserStruct struct {
 type User struct {
 	ID       int64  `json:"id"`
 	Email    string `json:"email"`
-	Password string `json:"-"`
+	Password string `json:"password"`
 	Role     string `json:"role"`
+	CreatedAt string `json:"since"`
 }
 type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
@@ -92,11 +93,11 @@ func Login(email string) (*User, error) {
 
 	var user User
 	err := config.Db.QueryRow(ctx,
-		`SELECT id, email, password, role
+		`SELECT id, email, password, role, created_at
 		 FROM users
 		 WHERE email = $1`,
 		email,
-	).Scan(&user.ID, &user.Email, &user.Password, &user.Role)
+	).Scan(&user.ID, &user.Email, &user.Password, &user.Role, &user.CreatedAt)
 
 	if err != nil {
 		return nil, err
