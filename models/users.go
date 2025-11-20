@@ -5,6 +5,7 @@ import (
 	"backend/lib"
 	"context"
 	"errors"
+	"time"
 )
 
 type ListUserStruct struct {
@@ -15,7 +16,7 @@ type ListUserStruct struct {
 	Phone          string `json:"phone"`
 	Address        string `json:"address"`
 	ProfilePicture string `json:"profile_picture"`
-	CreatedAt string `json:"since"`
+	CreatedAt time.Time `json:"since"`
 }
 
 type User struct {
