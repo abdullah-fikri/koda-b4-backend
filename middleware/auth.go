@@ -3,8 +3,10 @@ package middleware
 import (
 	"backend/lib"
 	"backend/models"
+	"os"
 	"strings"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -42,16 +44,14 @@ func Auth() gin.HandlerFunc {
 	}
 }
 func CorsMiddleware() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		ctx.Header("Access-Control-Allow-Origin", "*")
-		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
-		ctx.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		
-		if ctx.Request.Method == "OPTIONS" {
-			ctx.AbortWithStatus(200) 
-			return
-		}
-		
-		ctx.Next()
-	}
+	frontEnd := os.Getenv("FRONTEND")
+    return cors.New(cors.Config{
+        AllowOrigins: []string{
+            frontEnd,
+            "http://localhost:5173",
+        },
+        AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+        AllowHeaders: []string{"Content-Type", "Authorization"},
+        AllowCredentials: true,
+    })
 }
