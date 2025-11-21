@@ -187,17 +187,20 @@ func UploadUserPicture(ctx *gin.Context) {
 		return
 	}
 
-	newFilename := fmt.Sprintf("%d-%d%s", userID, time.Now().Unix(), ext)
-	uploadPath := "./uploads/profile/" + newFilename
-	os.MkdirAll("./uploads/profile", 0755)
+	src, err := file.Open()
+	if err != nil {
+		ctx.JSON(500, models.Response{Success: false, Message: "cannot open file: " + err.Error()})
+		return
+	}
+	defer src.Close()
 
-	if err := ctx.SaveUploadedFile(file, uploadPath); err != nil {
-		ctx.JSON(500, models.Response{Success: false, Message: "failed to save file"})
+	uploadedURL, err := lib.UploadImage(src)
+	if err != nil {
+		ctx.JSON(500, models.Response{Success: false, Message: "failed upload to cloudinary: " + err.Error()})
 		return
 	}
 
-	if err := models.UpdateUserProfilePicture(userID, newFilename); err != nil {
-		os.Remove(uploadPath)
+	if err := models.UpdateUserProfilePicture(userID, uploadedURL); err != nil {
 		ctx.JSON(500, models.Response{Success: false, Message: err.Error()})
 		return
 	}
@@ -205,7 +208,7 @@ func UploadUserPicture(ctx *gin.Context) {
 	ctx.JSON(200, models.Response{
 		Success: true,
 		Message: "upload success",
-		Data: gin.H{"profile_picture": newFilename},
+		Data:    gin.H{"profile_picture": uploadedURL},
 	})
 }
 
