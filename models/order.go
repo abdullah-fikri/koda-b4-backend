@@ -212,9 +212,10 @@ func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 	}, nil
 }
 
-func GetOrderHistoryByUserID(userID int64, month, shippingID int) ([]map[string]interface{}, error) {
+func GetOrderHistoryByUserID(userID int64, month, shippingID, page, limit int) ([]map[string]interface{}, int, error) {
 	ctx := context.Background()
 
+	offset := (page - 1) * limit
 	query := `
 	SELECT 
 		o.id AS order_id,
@@ -247,15 +248,19 @@ func GetOrderHistoryByUserID(userID int64, month, shippingID int) ([]map[string]
 	}
 	query += fmt.Sprintf(" AND o.shipping_id = $%d", argIndex)
 	args = append(args, shippingID)
+	argIndex++
 
 	query += `
 	GROUP BY o.id, o.invoice, o.order_date, o.total, s.name
 	ORDER BY o.order_date DESC
+	LIMIT $%d OFFSET $%d
 	`
+	query = fmt.Sprintf(query, argIndex, argIndex+1)
+	args = append(args, limit, offset)
 
 	rows, err := config.Db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -272,7 +277,7 @@ func GetOrderHistoryByUserID(userID int64, month, shippingID int) ([]map[string]
 		)
 
 		if err := rows.Scan(&orderID, &invoice, &orderDate, &total, &status, &image); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 
 		history = append(history, map[string]interface{}{
@@ -285,7 +290,32 @@ func GetOrderHistoryByUserID(userID int64, month, shippingID int) ([]map[string]
 		})
 	}
 
-	return history, nil
+	countQuery := `
+		SELECT COUNT(DISTINCT o.id)
+		FROM orders o
+		WHERE o.users_id = $1
+	`
+	countArgs := []interface{}{userID}
+
+	argIndex2 := 2
+	if month > 0 {
+		countQuery += fmt.Sprintf(" AND EXTRACT(MONTH FROM o.order_date) = $%d", argIndex2)
+		countArgs = append(countArgs, month)
+		argIndex2++
+	} else {
+		countQuery += " AND EXTRACT(MONTH FROM o.order_date) = (SELECT EXTRACT(MONTH FROM MAX(order_date)) FROM orders WHERE users_id = $1)"
+	}
+
+	countQuery += fmt.Sprintf(" AND o.shipping_id = $%d", argIndex2)
+	countArgs = append(countArgs, shippingID)
+
+	var totalItems int
+	err = config.Db.QueryRow(ctx, countQuery, countArgs...).Scan(&totalItems)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return history, totalItems, nil
 }
 
 func GetOrderDetail(orderID int64) (*OrderDetail, error) {

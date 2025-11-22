@@ -7,6 +7,8 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	"net/url"
+	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -116,13 +118,15 @@ func OrderHistory(ctx *gin.Context) {
 	user := userData.(lib.UserPayload)
 
 	month, _ := strconv.Atoi(ctx.DefaultQuery("month", "0"))
-	shippingStr := ctx.DefaultQuery("shipping_id", "")
-	if shippingStr == "" {
-		shippingStr = ctx.DefaultQuery("shippings_id", "0")
-	}
-	shippingID, _ := strconv.Atoi(shippingStr)
+	shippingID, _ := strconv.Atoi(ctx.DefaultQuery("shipping_id", "0"))
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	limit := 4
 
-	history, err := models.GetOrderHistoryByUserID(int64(user.Id), month, shippingID)
+	if page < 1 {
+		page = 1
+	}
+
+	history, totalItems, err := models.GetOrderHistoryByUserID(int64(user.Id), month, shippingID, page, limit)
 	if err != nil {
 		ctx.JSON(500, models.Response{
 			Success: false,
@@ -131,9 +135,25 @@ func OrderHistory(ctx *gin.Context) {
 		return
 	}
 
+	totalPage := int((int64(totalItems) + int64(limit) - 1) / int64(limit))
+
+	rawQuery := ctx.Request.URL.Query()
+	extraQuery := url.Values{}
+	for k, v := range rawQuery {
+		extraQuery[k] = append([]string{}, v...)
+	}
+
+	baseURL := os.Getenv("APP_BASE_URL") 
+	path := ctx.Request.URL.Path       
+
+	hateoasURL := lib.Hateoas(baseURL, path, page, limit, totalPage, extraQuery)
+	pagination := lib.Pagination(page, limit, totalPage, int64(totalItems), hateoasURL)
+
 	ctx.JSON(200, models.Response{
-		Success: true,
-		Data:    history,
+		Success:    true,
+		Message:    "success from db",
+		Pagination: pagination,
+		Data:       history,
 	})
 }
 
