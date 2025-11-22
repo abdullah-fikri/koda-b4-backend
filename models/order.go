@@ -324,23 +324,22 @@ func GetOrderDetail(orderID int64) (*OrderDetail, error) {
 	order := OrderDetail{}
 
 	err := config.Db.QueryRow(ctx, `
-    SELECT 
-        o.id,
+		SELECT 
+		o.id,
 		o.invoice,
-        o.customer_name,
-        o.customer_phone,
-        o.customer_address,
-        o.order_date,
-        s.name AS shipping_status,
-        p.name,
-        s.name,
-        o.total
-    FROM orders AS o
-    JOIN payment AS p ON o.payment_id = p.id
-    JOIN shippings AS s ON o.shipping_id = s.id
-    JOIN order_items oi ON oi.order_id = o.id
-    WHERE o.id = $1
-    GROUP BY o.id, p.name, s.name
+		o.customer_name,
+		o.customer_phone,
+		o.customer_address,
+		o.order_date,
+		s.name AS shipping_status,
+		p.name AS payment_method,
+		m.name AS shipping_method,
+		o.total
+	FROM orders AS o
+	JOIN payment AS p ON o.payment_id = p.id
+	JOIN shippings AS s ON o.shipping_id = s.id
+	JOIN method AS m ON o.method_id = m.id    
+	WHERE o.id = $1
 `, orderID).Scan(
 		&order.ID,
 		&order.Invoice,
