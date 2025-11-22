@@ -36,7 +36,8 @@ type OrderItemRes struct {
 	Size          string  `json:"size"`
 	Qty           int     `json:"qty"`
 	BasePrice     float64 `json:"base_price"`
-	DiscountPrice float64 `json:"discount_rice"`
+	DiscountPrice float64 `json:"discount_price"`
+	Img string `json:"img"`
 }
 
 type OrderResponse struct {
@@ -358,18 +359,21 @@ func GetOrderDetail(orderID int64) (*OrderDetail, error) {
 	}
 
 	rows, err := config.Db.Query(ctx, `
-		SELECT 
-			pr.name,
-			COALESCE(v.name, '-') AS variant,
-			COALESCE(sz.name, '-') AS size,
-			oi.qty,
-			oi.discount_price,
-			pr.price
-		FROM order_items oi
-		JOIN products pr ON oi.product_id = pr.id
-		LEFT JOIN variant v ON oi.variant_id = v.id
-		LEFT JOIN size sz ON oi.size_id = sz.id
-		WHERE oi.order_id = $1
+	SELECT 
+		pr.name,
+		COALESCE(v.name, '-') AS variant,
+		COALESCE(sz.name, '-') AS size,
+		oi.qty,
+		oi.discount_price,
+		pr.price,
+		COALESCE(MIN(pimg.image), '') AS image
+	FROM order_items oi
+	JOIN products pr ON oi.product_id = pr.id
+	LEFT JOIN variant v ON oi.variant_id = v.id
+	LEFT JOIN size sz ON oi.size_id = sz.id
+	LEFT JOIN product_img pimg ON pr.id = pimg.product_id
+	WHERE oi.order_id = $1
+	GROUP BY pr.name, v.name, sz.name, oi.qty, oi.discount_price, pr.price
 	`, orderID)
 
 	if err != nil {
@@ -379,7 +383,7 @@ func GetOrderDetail(orderID int64) (*OrderDetail, error) {
 
 	for rows.Next() {
 		var item OrderItemRes
-		if err := rows.Scan(&item.ProductName, &item.Variant, &item.Size, &item.Qty, &item.DiscountPrice,&item.BasePrice); err != nil {
+		if err := rows.Scan(&item.ProductName, &item.Variant, &item.Size, &item.Qty, &item.DiscountPrice,&item.BasePrice, &item.Img); err != nil {
 			return nil, err
 		}
 		order.Items = append(order.Items, item)
