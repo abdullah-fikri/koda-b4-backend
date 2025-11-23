@@ -68,7 +68,7 @@ func GetProductsAdmin(page, limit int, search string) ([]ProductAdmin, int64, er
     COALESCE(pi.image, '') AS image,
     p.name,
     p.description,
-    MIN(ps.price) AS price,
+    COALESCE(MIN(ps.price), 0) AS price,
     COALESCE(string_agg(DISTINCT s.name, ', '), '') AS sizes,
     COALESCE(string_agg(DISTINCT m.name, ', '), '') AS methods,
     p.stock
