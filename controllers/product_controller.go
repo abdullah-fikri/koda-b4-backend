@@ -23,21 +23,28 @@ func AdminProductList(ctx *gin.Context) {
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "5"))
 	search := ctx.DefaultQuery("search", "")
 
-	products, total, err := models.GetProductsAdmin(page, limit, search)
+	products, totalItems, err := models.GetProductsAdmin(page, limit, search)
 	if err != nil {
 		ctx.JSON(400, models.Response{Success: false, Message: err.Error()})
 		return
 	}
+	totalPage := int((totalItems + int64(limit) - 1) / int64(limit))
+
+	baseURL := ctx.Request.Host
+	path := ctx.FullPath()
+
+	extraQuery := ctx.Request.URL.Query()
+	extraQuery.Del("page")
+	extraQuery.Del("limit")
+	links := lib.Hateoas(baseURL, path, page, limit, totalPage, extraQuery)
+
+	pagination := lib.Pagination(page, limit, totalPage, totalItems, links)
 
 	ctx.JSON(200, models.Response{
-		Success: true,
-		Message: "admin product list",
-		Data: gin.H{
-			"products": products,
-			"total":    total,
-			"page":     page,
-			"limit":    limit,
-		},
+		Success:    true,
+		Message:    "admin product list",
+		Pagination: pagination,
+		Data:       products,
 	})
 }
 
