@@ -86,8 +86,9 @@ func GetCart(userID int64) ([]CartItemResponse, error) {
 			p.name AS product_name,
 			COALESCE(v.name, '') AS variant_name,
 			COALESCE(s.name, '') AS size_name,
-			ps.price AS price,
-			(ps.price * ci.qty) AS subtotal, 
+			COALESCE(ps.price, p.min_price) AS price,
+			COALESCE(ps.price, p.min_price) * ci.qty AS subtotal,
+
 			ci.qty,
 			(
 				SELECT pi.image 
