@@ -63,26 +63,31 @@ func GetProductsAdmin(page, limit int, search string) ([]ProductAdmin, int64, er
 	offset := (page - 1) * limit
 
 	query := `
-SELECT
-	p.id,
-	COALESCE(pi.image, '') AS image,
-	p.name,
-	p.description,
-	MIN(ps.price) AS price,
-	COALESCE(string_agg(DISTINCT s.name, ', '), '') AS sizes,
-	COALESCE(string_agg(DISTINCT m.name, ', '), '') AS methods,
-	p.stock
+	SELECT
+    p.id,
+    COALESCE(pi.image, '') AS image,
+    p.name,
+    p.description,
+    MIN(ps.price) AS price,
+    COALESCE(string_agg(DISTINCT s.name, ', '), '') AS sizes,
+    COALESCE(string_agg(DISTINCT m.name, ', '), '') AS methods,
+    p.stock
 FROM products p
-LEFT JOIN product_img pi ON pi.product_id = p.id
+LEFT JOIN (
+    SELECT DISTINCT ON (product_id) product_id, image
+    FROM product_img
+    ORDER BY product_id, id ASC
+) pi ON pi.product_id = p.id
 LEFT JOIN product_size ps ON ps.product_id = p.id
 LEFT JOIN size s ON s.id = ps.size_id
 LEFT JOIN product_method pm ON pm.product_id = p.id
 LEFT JOIN method m ON m.id = pm.method_id
 WHERE p.name ILIKE '%' || $1 || '%'
-GROUP BY p.id, pi.image
+GROUP BY p.id, pi.image, p.name, p.description, p.stock
 ORDER BY p.created_at DESC
-LIMIT $2 OFFSET $3;
-`
+LIMIT $2 OFFSET $3`
+
+
 
 	rows, err := config.Db.Query(ctx, query, search, limit, offset)
 	if err != nil {
