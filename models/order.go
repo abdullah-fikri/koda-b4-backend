@@ -70,23 +70,24 @@ func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 
 	var total float64
 	err = config.Db.QueryRow(ctx, `
-		SELECT COALESCE(SUM(
-			CASE 
-				WHEN d.id IS NOT NULL 
-					AND NOW() BETWEEN d.start_discount AND d.end_discount
-				THEN (ps.price - (ps.price * d.percent_discount / 100)) * ci.qty
-				ELSE ps.price * ci.qty
-			END
-		), 0)
-		FROM cart_items ci
-		JOIN cart c ON c.id = ci.cart_id
-		LEFT JOIN product_size ps ON ps.id = ci.size_id
-		LEFT JOIN product_discount pd ON pd.product_id = ci.product_id
-		LEFT JOIN discount d ON d.id = pd.discount_id
-		WHERE c.user_id = $1
+	SELECT COALESCE(SUM(
+		CASE 
+			WHEN d.id IS NOT NULL 
+				AND NOW() BETWEEN d.start_discount AND d.end_discount
+			THEN (COALESCE(ps.price, p.min_price) - (COALESCE(ps.price, p.min_price) * d.percent_discount / 100)) * ci.qty
+			ELSE COALESCE(ps.price, p.min_price) * ci.qty
+		END
+	), 0)
+	FROM cart_items ci
+	JOIN cart c ON c.id = ci.cart_id
+	JOIN products p ON p.id = ci.product_id
+	LEFT JOIN product_size ps ON ps.id = ci.size_id
+	LEFT JOIN product_discount pd ON pd.product_id = ci.product_id
+	LEFT JOIN discount d ON d.id = pd.discount_id
+	WHERE c.user_id = $1
 	`, userID).Scan(&total)
 	if err != nil {
-		return OrderResponse{}, fmt.Errorf("failed to calculate total: %w", err)
+	return OrderResponse{}, fmt.Errorf("failed to calculate total: %w", err)
 	}
 	
 	tx, err := config.Db.Begin(ctx)
@@ -121,25 +122,26 @@ func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 	}
 
 	rows, err := tx.Query(ctx, `
-		SELECT 
-			ci.product_id,
-			ci.variant_id,
-			ci.size_id,
-			ci.qty,
-			ps.price AS base_price,
-			COALESCE(d.percent_discount, 0) AS discount_percent,
-			CASE 
-				WHEN d.id IS NOT NULL 
-					AND NOW() BETWEEN d.start_discount AND d.end_discount
-				THEN ps.price - (ps.price * d.percent_discount / 100)
-				ELSE ps.price
-			END AS discount_price
-		FROM cart_items ci
-		JOIN cart c ON c.id = ci.cart_id
-		LEFT JOIN product_size ps ON ps.id = ci.size_id
-		LEFT JOIN product_discount pd ON pd.product_id = ci.product_id
-		LEFT JOIN discount d ON d.id = pd.discount_id
-		WHERE c.user_id = $1
+	SELECT 
+		ci.product_id,
+		ci.variant_id,
+		ci.size_id,
+		ci.qty,
+		COALESCE(ps.price, p.min_price) AS base_price,
+		COALESCE(d.percent_discount, 0) AS discount_percent,
+		CASE
+			WHEN d.id IS NOT NULL
+				AND NOW() BETWEEN d.start_discount AND d.end_discount
+			THEN COALESCE(ps.price, p.min_price) - (COALESCE(ps.price, p.min_price) * COALESCE(d.percent_discount, 0) / 100)
+			ELSE COALESCE(ps.price, p.min_price)
+		END AS discount_price
+	FROM cart_items ci
+	JOIN cart c ON c.id = ci.cart_id
+	JOIN products p ON p.id = ci.product_id
+	LEFT JOIN product_size ps ON ps.id = ci.size_id
+	LEFT JOIN product_discount pd ON pd.product_id = ci.product_id
+	LEFT JOIN discount d ON d.id = pd.discount_id
+	WHERE c.user_id = $1
 	`, userID)
 	if err != nil {
 		return OrderResponse{}, fmt.Errorf("failed to fetch cart items: %w", err)
