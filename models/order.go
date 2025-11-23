@@ -74,8 +74,8 @@ func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 		CASE 
 			WHEN d.id IS NOT NULL 
 				AND NOW() BETWEEN d.start_discount AND d.end_discount
-			THEN (COALESCE(ps.price, p.min_price) - (COALESCE(ps.price, p.min_price) * d.percent_discount / 100)) * ci.qty
-			ELSE COALESCE(ps.price, p.min_price) * ci.qty
+			THEN (COALESCE(ps.price, p.price) - (COALESCE(ps.price, p.price) * d.percent_discount / 100)) * ci.qty
+			ELSE COALESCE(ps.price, p.price) * ci.qty
 		END
 	), 0)
 	FROM cart_items ci
@@ -127,13 +127,13 @@ func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 		ci.variant_id,
 		ci.size_id,
 		ci.qty,
-		COALESCE(ps.price, p.min_price) AS base_price,
+		COALESCE(ps.price, p.price) AS base_price,
 		COALESCE(d.percent_discount, 0) AS discount_percent,
 		CASE
 			WHEN d.id IS NOT NULL
 				AND NOW() BETWEEN d.start_discount AND d.end_discount
-			THEN COALESCE(ps.price, p.min_price) - (COALESCE(ps.price, p.min_price) * COALESCE(d.percent_discount, 0) / 100)
-			ELSE COALESCE(ps.price, p.min_price)
+			THEN COALESCE(ps.price, p.price) - (COALESCE(ps.price, p.price) * COALESCE(d.percent_discount, 0) / 100)
+			ELSE COALESCE(ps.price, p.price)
 		END AS discount_price
 	FROM cart_items ci
 	JOIN cart c ON c.id = ci.cart_id
