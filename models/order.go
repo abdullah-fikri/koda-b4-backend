@@ -366,7 +366,7 @@ func GetOrderDetail(orderID int64) (*OrderDetail, error) {
 		COALESCE(sz.name, '-') AS size,
 		oi.qty,
 		oi.discount_price,
-		pr.price,
+		COALESCE(pr.price, oi.discount_price) AS price,
 		COALESCE(MIN(pimg.image), '') AS image
 	FROM order_items oi
 	JOIN products pr ON oi.product_id = pr.id
@@ -374,7 +374,7 @@ func GetOrderDetail(orderID int64) (*OrderDetail, error) {
 	LEFT JOIN size sz ON oi.size_id = sz.id
 	LEFT JOIN product_img pimg ON pr.id = pimg.product_id
 	WHERE oi.order_id = $1
-	GROUP BY pr.name, v.name, sz.name, oi.qty, oi.discount_price, pr.price
+	GROUP BY pr.name, v.name, sz.name, oi.qty, oi.discount_price, COALESCE(pr.price, oi.discount_price)
 	`, orderID)
 
 	if err != nil {
