@@ -25,6 +25,11 @@ type ProductAdmin struct {
 	Stock       int64  `json:"stock"`
 }
 
+type Variant struct {
+	VariantID int64  `json:"variant_id"`
+	Name      string `json:"name"`
+}
+
 type Product struct {
 	ID          int64         `json:"id"`
 	Name        string        `json:"name"`
@@ -34,7 +39,7 @@ type Product struct {
 	Category    string        `json:"category"`
 	Images      []string      `json:"images"`
 	Sizes       []ProductSize `json:"sizes"`
-	Variants    []string      `json:"variants"`
+	Variants    []Variant      `json:"variants"`
 	CreatedAt   time.Time     `json:"created_at"`
 	UpdatedAt   time.Time     `json:"updated_at"`
 }
