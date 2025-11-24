@@ -291,10 +291,13 @@ SELECT
     '[]'
   ) AS images,
 
-  COALESCE(
-    json_agg(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL),
-    '[]'
-  ) AS variants,
+  COALESCE(json_agg(DISTINCT jsonb_build_object(
+		'variant_id', v.id,
+		'name', v.name
+	  )
+	) FILTER (WHERE v.id IS NOT NULL),
+	'[]'
+  ) AS variants,  
 
   COALESCE(
     json_agg(DISTINCT jsonb_build_object(
