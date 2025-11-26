@@ -1,0 +1,3 @@
+-- Active: 1763566308409@@165.22.110.38@5432@fiki-coffeshop
+ALTER TABLE orders
+ADD COLUMN tax NUMERIC(5,2) DEFAULT 0;

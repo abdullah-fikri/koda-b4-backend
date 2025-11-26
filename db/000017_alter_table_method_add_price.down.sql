@@ -1,0 +1,1 @@
+ALTER TABLE method DROP COLUMN additional_price
