@@ -41,113 +41,129 @@ type OrderItemRes struct {
 }
 
 type OrderResponse struct {
-	OrderID         int64   `json:"order_id"`
-	Invoice         string  `json:"invoice"`
-	Total           float64 `json:"total"`
-	CustomerName    string  `json:"customer_name"`
-	CustomerPhone   string  `json:"customer_phone"`
-	CustomerAddress string  `json:"customer_address"`
-	Status          string  `json:"status"`
+    OrderID         int64   `json:"order_id"`
+    Invoice         string  `json:"invoice"`
+    TotalCart       float64 `json:"total_cart"`        
+    Tax             float64 `json:"tax"`               
+    AdditionalPrice float64 `json:"additional_price"`  
+    Total           float64 `json:"total"`           
+    CustomerName    string  `json:"customer_name"`
+    CustomerPhone   string  `json:"customer_phone"`
+    CustomerAddress string  `json:"customer_address"`
+    Status          string  `json:"status"`
 }
 
 func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
-	ctx := context.Background()
+    ctx := context.Background()
 
-	var cartItemCount int
-	err := config.Db.QueryRow(ctx, `
-		SELECT COUNT(ci.id)
-		FROM cart_items ci
-		JOIN cart c ON c.id = ci.cart_id
-		WHERE c.user_id = $1
-	`, userID).Scan(&cartItemCount)
-	if err != nil {
-		return OrderResponse{}, fmt.Errorf("failed to check cart: %w", err)
-	}
-
-	if cartItemCount == 0 {
-		return OrderResponse{}, fmt.Errorf("cannot create order: cart is empty")
-	}
-
-	var total float64
-	err = config.Db.QueryRow(ctx, `
-	SELECT COALESCE(SUM(
-		CASE 
-			WHEN d.id IS NOT NULL 
-				AND NOW() BETWEEN d.start_discount AND d.end_discount
-			THEN (COALESCE(ps.price, p.price) - (COALESCE(ps.price, p.price) * d.percent_discount / 100)) * ci.qty
-			ELSE COALESCE(ps.price, p.price) * ci.qty
-		END
-	), 0)
-	FROM cart_items ci
-	JOIN cart c ON c.id = ci.cart_id
-	JOIN products p ON p.id = ci.product_id
-	LEFT JOIN product_size ps ON ps.id = ci.size_id
-	LEFT JOIN product_discount pd ON pd.product_id = ci.product_id
-	LEFT JOIN discount d ON d.id = pd.discount_id
-	WHERE c.user_id = $1
-	`, userID).Scan(&total)
-	if err != nil {
-	return OrderResponse{}, fmt.Errorf("failed to calculate total: %w", err)
-	}
+    var cartItemCount int
+    err := config.Db.QueryRow(ctx, `
+        SELECT COUNT(ci.id)
+        FROM cart_items ci
+        JOIN cart c ON c.id = ci.cart_id
+        WHERE c.user_id = $1
+    `, userID).Scan(&cartItemCount)
+    if err != nil {
+        return OrderResponse{}, fmt.Errorf("failed to check cart: %w", err)
+    }
 	
-	tx, err := config.Db.Begin(ctx)
-	if err != nil {
-		return OrderResponse{}, fmt.Errorf("failed to start transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
+    if cartItemCount == 0 {
+        return OrderResponse{}, fmt.Errorf("cart is empty")
+    }
 
-	invoice := fmt.Sprintf("INV-%d-%d", time.Now().Unix(), userID)
+    var cartTotal float64
+    err = config.Db.QueryRow(ctx, `
+        SELECT COALESCE(SUM(
+            CASE 
+                WHEN d.id IS NOT NULL 
+                AND NOW() BETWEEN d.start_discount AND d.end_discount
+                    THEN (COALESCE(ps.price, p.price) - (COALESCE(ps.price, p.price) * d.percent_discount / 100)) * ci.qty
+                ELSE COALESCE(ps.price, p.price) * ci.qty
+            END
+        ), 0)
+        FROM cart_items ci
+        JOIN cart c ON c.id = ci.cart_id
+        JOIN products p ON p.id = ci.product_id
+        LEFT JOIN product_size ps ON ps.id = ci.size_id
+        LEFT JOIN product_discount pd ON pd.product_id = ci.product_id
+        LEFT JOIN discount d ON d.id = pd.discount_id
+        WHERE c.user_id = $1
+    `, userID).Scan(&cartTotal)
+    if err != nil {
+        return OrderResponse{}, fmt.Errorf("failed to calculate cart total: %w", err)
+    }
 
-	var orderID int64
-	err = tx.QueryRow(ctx, `
-		INSERT INTO orders (
-			users_id, payment_id, shipping_id, method_id,
-			order_date, customer_name, customer_phone, customer_address,
-			total, invoice
-		)
-		VALUES ($1, $2, 3, $3, NOW(), $4, $5, $6, $7, $8)
-		RETURNING id
-	`,
-		userID,
-		req.PaymentID,
-		req.MethodID,
-		req.CustomerName,
-		req.CustomerPhone,
-		req.CustomerAddress,
-		total,
-		invoice,
-	).Scan(&orderID)
-	if err != nil {
-		return OrderResponse{}, fmt.Errorf("failed to insert order: %w", err)
-	}
+    tax := cartTotal * 0.10
 
-	rows, err := tx.Query(ctx, `
-	SELECT 
-		ci.product_id,
-		ci.variant_id,
-		ci.size_id,
-		ci.qty,
-		COALESCE(ps.price, p.price) AS base_price,
-		COALESCE(d.percent_discount, 0) AS discount_percent,
-		CASE
-			WHEN d.id IS NOT NULL
-				AND NOW() BETWEEN d.start_discount AND d.end_discount
-			THEN COALESCE(ps.price, p.price) - (COALESCE(ps.price, p.price) * COALESCE(d.percent_discount, 0) / 100)
-			ELSE COALESCE(ps.price, p.price)
-		END AS discount_price
-	FROM cart_items ci
-	JOIN cart c ON c.id = ci.cart_id
-	JOIN products p ON p.id = ci.product_id
-	LEFT JOIN product_size ps ON ps.id = ci.size_id
-	LEFT JOIN product_discount pd ON pd.product_id = ci.product_id
-	LEFT JOIN discount d ON d.id = pd.discount_id
-	WHERE c.user_id = $1
-	`, userID)
+    tx, err := config.Db.Begin(ctx)
+    if err != nil {
+        return OrderResponse{}, fmt.Errorf("transaction start error: %w", err)
+    }
+    defer tx.Rollback(ctx)
+
+    var additionalPrice float64
+    err = tx.QueryRow(ctx, `
+        SELECT COALESCE(additional_price, 0)
+        FROM method
+        WHERE id = $1
+    `, req.MethodID).Scan(&additionalPrice)
+    if err != nil {
+        return OrderResponse{}, fmt.Errorf("failed to get additional_price: %w", err)
+    }
+    totalFinal := cartTotal + tax + additionalPrice
+    invoice := fmt.Sprintf("INV-%d-%d", time.Now().Unix(), userID)
+
+    var orderID int64
+    err = tx.QueryRow(ctx, `
+        INSERT INTO orders (
+            users_id, payment_id, shipping_id, method_id,
+            order_date, customer_name, customer_phone, customer_address,
+            total, tax, invoice
+        ) VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7, $8, $9, $10)
+        RETURNING id
+    `,
+        userID,
+        req.PaymentID,
+        3,
+        req.MethodID,
+        req.CustomerName,
+        req.CustomerPhone,
+        req.CustomerAddress,
+        totalFinal,
+        tax,
+        invoice,
+    ).Scan(&orderID)
+    if err != nil {
+        return OrderResponse{}, fmt.Errorf("failed to insert order: %w", err)
+    }
+
+    rows, err := tx.Query(ctx, `
+        SELECT 
+            ci.product_id,
+            ci.variant_id,
+            ci.size_id,
+            ci.qty,
+            COALESCE(ps.price, p.price) AS base_price,
+            COALESCE(d.percent_discount, 0) AS discount_percent,
+            CASE
+                WHEN d.id IS NOT NULL
+                AND NOW() BETWEEN d.start_discount AND d.end_discount
+                    THEN COALESCE(ps.price, p.price) - (COALESCE(ps.price, p.price) * COALESCE(d.percent_discount, 0) / 100)
+                ELSE COALESCE(ps.price, p.price)
+            END AS discount_price
+        FROM cart_items ci
+        JOIN cart c ON c.id = ci.cart_id
+        JOIN products p ON p.id = ci.product_id
+        LEFT JOIN product_size ps ON ps.id = ci.size_id
+        LEFT JOIN product_discount pd ON pd.product_id = ci.product_id
+        LEFT JOIN discount d ON d.id = pd.discount_id
+        WHERE c.user_id = $1
+    `, userID)
 	if err != nil {
 		return OrderResponse{}, fmt.Errorf("failed to fetch cart items: %w", err)
 	}
 
-	var items []struct {
+    var items []struct {
 		ProductID         int64
 		VariantID, SizeID *int64
 		Qty               int
@@ -177,42 +193,54 @@ func CreateOrder(userID int64, req CreateOrderRequest) (OrderResponse, error) {
 		return OrderResponse{}, fmt.Errorf("error while reading rows: %w", err)
 	}
 
-	for _, i := range items {
-		subtotal := i.DiscountPrice * float64(i.Qty)
-		_, err = tx.Exec(ctx, `
-			INSERT INTO order_items (
-				order_id, product_id, variant_id, size_id, qty, 
-				base_price, discount_price, discount_percent, subtotal
-			)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		`, orderID, i.ProductID, i.VariantID, i.SizeID, i.Qty,
-			i.BasePrice, i.DiscountPrice, i.DiscountPercent, subtotal)
-		if err != nil {
-			return OrderResponse{}, fmt.Errorf("failed to insert order item: %w", err)
-		}
+    for _, it := range items {
+        subtotal := it.DiscountPrice * float64(it.Qty)
+
+        _, err = tx.Exec(ctx, `
+            INSERT INTO order_items (
+                order_id, product_id, variant_id, size_id, qty,
+                base_price, discount_price, discount_percent, subtotal
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        `,
+            orderID,
+            it.ProductID,
+            it.VariantID,
+            it.SizeID,
+            it.Qty,
+            it.BasePrice,
+            it.DiscountPrice,
+            it.DiscountPercent,
+            subtotal,
+        )
+        if err != nil {
+            return OrderResponse{}, fmt.Errorf("failed insert order_item: %w", err)
+        }
+    }
+
+    _, err = tx.Exec(ctx, `
+        DELETE FROM cart_items
+        WHERE cart_id IN (SELECT id FROM cart WHERE user_id = $1)
+    `, userID)
+    if err != nil {
+        return OrderResponse{}, fmt.Errorf("failed to clear cart: %w", err)
+    }
+
+    if err := tx.Commit(ctx); err != nil {
+    	return OrderResponse{}, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	_, err = tx.Exec(ctx, `
-		DELETE FROM cart_items 
-		WHERE cart_id IN (SELECT id FROM cart WHERE user_id = $1)
-	`, userID)
-	if err != nil {
-		return OrderResponse{}, fmt.Errorf("failed to clear cart: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return OrderResponse{}, fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	return OrderResponse{
-		OrderID:         orderID,
-		Invoice:         invoice,
-		Total:           total,
-		CustomerName:    req.CustomerName,
-		CustomerPhone:   req.CustomerPhone,
-		CustomerAddress: req.CustomerAddress,
-		Status:          "On Progress",
-	}, nil
+    return OrderResponse{
+        OrderID:         orderID,
+        Invoice:         invoice,
+        TotalCart:       cartTotal,
+        Tax:             tax,
+        AdditionalPrice: additionalPrice,
+        Total:           totalFinal,
+        CustomerName:    req.CustomerName,
+        CustomerPhone:   req.CustomerPhone,
+        CustomerAddress: req.CustomerAddress,
+        Status:          "On Progress",
+    }, nil
 }
 
 func GetOrderHistoryByUserID(userID int64, month, shippingID, page, limit int) ([]map[string]interface{}, int, error) {
