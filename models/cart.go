@@ -88,14 +88,16 @@ func GetCart(userID int64) ([]CartItemResponse, error) {
 			COALESCE(s.name, '') AS size_name,
 			COALESCE(ps.price, p.price) AS price,
 			COALESCE(ps.price, p.price) * ci.qty AS subtotal,
-
 			ci.qty,
-			(
-				SELECT COALESCE (pi.image, '') 
-				FROM product_img pi 
-				WHERE pi.product_id = p.id 
-				ORDER BY pi.id ASC 
+			COALESCE(
+			  (
+				SELECT pi.image
+				FROM product_img pi
+				WHERE pi.product_id = p.id
+				ORDER BY pi.id ASC
 				LIMIT 1
+			  ),
+			  ''
 			) AS image
 		FROM cart_items ci
 		JOIN cart c ON c.id = ci.cart_id
