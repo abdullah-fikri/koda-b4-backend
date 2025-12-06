@@ -385,9 +385,9 @@ func UpdateProduct(id int64, req CreateProductRequest) (*Product, error) {
 	ctx := context.Background()
 
 	_, err := config.Db.Exec(ctx,
-		`UPDATE products SET name=$1, description=$2, stock=$3, category_id=$4, updated_at=now()
-		 WHERE id=$5`,
-		req.Name, req.Description, req.Stock, req.CategoryID, id,
+		`UPDATE products SET name=$1, description=$2, stock=$3, category_id=$4, updated_at=now(), price=$5
+		 WHERE id=$6`,
+		req.Name, req.Description, req.Stock, req.CategoryID,req.Price, id,
 	)
 	if err != nil {
 		return nil, err
