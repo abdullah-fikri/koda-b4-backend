@@ -234,10 +234,10 @@ func CreateProduct(ctx *gin.Context) {
 	}
 
 	redisCtx := context.Background()
-	iter := config.Rdb.Scan(redisCtx, 0, "/products*", 0).Iterator()
+	iter := config.Rdb.Scan(redisCtx, 0, "products*", 0).Iterator()
 	for iter.Next(redisCtx) {
 		config.Rdb.Del(redisCtx, iter.Val())
-	}	
+	}
 
 	ctx.JSON(201, models.Response{
 		Success: true,
@@ -274,7 +274,7 @@ func UpdateProduct(ctx *gin.Context) {
 	}
 
 	redisCtx := context.Background()
-	iter := config.Rdb.Scan(redisCtx, 0, "/products*", 0).Iterator()
+	iter := config.Rdb.Scan(redisCtx, 0, "products*", 0).Iterator()
 	for iter.Next(redisCtx) {
 		config.Rdb.Del(redisCtx, iter.Val())
 	}
@@ -315,7 +315,7 @@ func DeleteProduct(ctx *gin.Context) {
 	}
 
 	redisCtx := context.Background()
-	iter := config.Rdb.Scan(redisCtx, 0, "/products*", 0).Iterator()
+	iter := config.Rdb.Scan(redisCtx, 0, "products*", 0).Iterator()
 	for iter.Next(redisCtx) {
 		config.Rdb.Del(redisCtx, iter.Val())
 	}
