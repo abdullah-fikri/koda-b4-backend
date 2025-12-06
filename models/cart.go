@@ -91,7 +91,7 @@ func GetCart(userID int64) ([]CartItemResponse, error) {
 
 			ci.qty,
 			(
-				SELECT pi.image 
+				SELECT COALESCE (pi.image, '') 
 				FROM product_img pi 
 				WHERE pi.product_id = p.id 
 				ORDER BY pi.id ASC 
