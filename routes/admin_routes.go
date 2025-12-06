@@ -27,4 +27,11 @@ func AdminRoutes(r *gin.Engine) {
 	admin.GET("/orders", controllers.AdminOrderList)
 	admin.PUT("/orders/:id/status", controllers.UpdateOrderStatus)
 	admin.GET("/order/:id", controllers.OrderDetail)
+
+
+	//category
+	admin.POST("/category", controllers.CreateCategoryController)
+	admin.GET("/category", controllers.GetAllCategoriesController)
+	admin.PUT("/category/:id", controllers.UpdateCategoryController)
+	admin.DELETE("/category/:id", controllers.DeleteCategoryController)
 }
