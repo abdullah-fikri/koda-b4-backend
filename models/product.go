@@ -52,6 +52,7 @@ type CreateProductRequest struct {
 	Images      []string      `json:"images"`
 	Variants    []int         `json:"variants"`
 	Sizes       []ProductSize `json:"sizes"`
+	Price int `json:"base_price"`
 }
 
 // admin version
@@ -353,10 +354,10 @@ func CreateProduct(req CreateProductRequest) (*Product, error) {
 
 	var productID int64
 	err := config.Db.QueryRow(ctx,
-		`INSERT INTO products (name, description, stock, category_id)
-		 VALUES ($1,$2,$3,$4)
+		`INSERT INTO products (name, description, stock, category_id, price)
+		 VALUES ($1,$2,$3,$4,$5)
 		 RETURNING id`,
-		req.Name, req.Description, req.Stock, req.CategoryID,
+		req.Name, req.Description, req.Stock, req.CategoryID, req.Price,
 	).Scan(&productID)
 	if err != nil {
 		return nil, err
