@@ -261,9 +261,10 @@ func AdminUpdateUserProfilePicture(targetUserID int64, path string) error {
 }
 
 //admin
-func ListUser() ([]ListUserStruct, error) {
+func ListUser(page, limit int) ([]ListUserStruct, int64, error) {
 	ctx := context.Background()
 
+	offset := (page - 1) * limit
 	query := `
 	SELECT 
 		u.id,
@@ -274,16 +275,18 @@ func ListUser() ([]ListUserStruct, error) {
 		p.address,
 		COALESCE(p.profile_picture, '') AS profile_picture
 	FROM users u
-	JOIN profile p ON p.users_id = u.id;
+	JOIN profile p ON p.users_id = u.id
+	ORDER BY u.id DESC
+	LIMIT $1 OFFSET $2;
 	`
 
-	rows, err := config.Db.Query(ctx, query)
+	rows, err := config.Db.Query(ctx, query, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
-	var users []ListUserStruct
+	users := make([]ListUserStruct, 0)
 
 	for rows.Next() {
 		var u ListUserStruct
@@ -297,13 +300,23 @@ func ListUser() ([]ListUserStruct, error) {
 			&u.ProfilePicture,
 		)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 
 		users = append(users, u)
 	}
 
-	return users, nil
+	var totalItems int64
+	err = config.Db.QueryRow(ctx, `
+		SELECT COUNT(*) 
+		FROM users u
+		JOIN profile p ON p.users_id = u.id;
+	`).Scan(&totalItems)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return users, totalItems, nil
 }
 
 //user

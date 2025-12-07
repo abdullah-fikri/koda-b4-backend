@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -272,12 +273,21 @@ func AdminUploadUserPicture(ctx *gin.Context) {
 // @Failure 400 {object} models.Response
 // @Router /admin/users [get]
 func ListUser(ctx *gin.Context) {
-	key := ctx.Request.RequestURI
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+
+	key := fmt.Sprintf("%s?page=%d&limit=%d", ctx.Request.URL.Path, page, limit)
+	
 	var users []models.ListUserStruct
+	var totalItems int64
 
 	cache, err := config.Rdb.Get(context.Background(), key).Result()
 	if err != nil || cache == "" {
-		users, err = models.ListUser()
+		users, totalItems, err = models.ListUser(page, limit)
 		if err != nil {
 			ctx.JSON(400, models.Response{
 				Success: false,
@@ -286,23 +296,39 @@ func ListUser(ctx *gin.Context) {
 			return
 		}
 
-		data, _ := json.Marshal(users)
-		config.Rdb.Set(context.Background(), key, data, 15*time.Second)
+		totalPage := int((totalItems + int64(limit) - 1) / int64(limit))
 
-		ctx.JSON(200, models.Response{
-			Success: true,
-			Message: "success data from db",
-			Data:    users,
-		})
+		rawQuery := ctx.Request.URL.Query()
+		extraQuery := url.Values{}
+		for k, v := range rawQuery {
+			extraQuery[k] = append([]string{}, v...)
+		}
+
+		baseURL := os.Getenv("APP_BASE_URL")
+		path := ctx.Request.URL.Path
+
+		links := lib.Hateoas(baseURL, path, page, limit, totalPage, extraQuery)
+		pagination := lib.Pagination(page, limit, totalPage, totalItems, links)
+
+		response := models.Response{
+			Success:    true,
+			Message:    "success data from db",
+			Pagination: pagination,
+			Data:       users,
+		}
+
+		data, _ := json.Marshal(response)
+		config.Rdb.Set(context.Background(), key, data, 10*time.Minute)
+
+		ctx.JSON(200, response)
 		return
 	}
 
-	json.Unmarshal([]byte(cache), &users)
-	ctx.JSON(200, models.Response{
-		Success: true,
-		Message: "data from cache",
-		Data:    users,
-	})
+	var cachedResponse models.Response
+	json.Unmarshal([]byte(cache), &cachedResponse)
+	cachedResponse.Message = "data from cache"
+	
+	ctx.JSON(200, cachedResponse)
 }
 
 
