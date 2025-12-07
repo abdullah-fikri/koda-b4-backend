@@ -62,7 +62,12 @@ func RegisterUser(ctx *gin.Context) {
 		return
 	}
 
-	config.Rdb.Del(context.Background(), "/users")
+	redisCtx := context.Background()
+	iter := config.Rdb.Scan(redisCtx, 0, "/admin/user*", 0).Iterator()
+	for iter.Next(redisCtx) {
+		config.Rdb.Del(redisCtx, iter.Val())
+	}
+
 	ctx.JSON(200, models.Response{
 		Success: true,
 		Message: "Register success",
@@ -162,7 +167,11 @@ func AdminUpdateUser(ctx *gin.Context) {
         return
     }
 
-    config.Rdb.Del(ctx, "/users")
+    redisCtx := context.Background()
+	iter := config.Rdb.Scan(redisCtx, 0, "/admin/user*", 0).Iterator()
+	for iter.Next(redisCtx) {
+		config.Rdb.Del(redisCtx, iter.Val())
+	}
 
     ctx.JSON(200, models.Response{
         Success: true,
