@@ -21,9 +21,10 @@ type Categories struct {
 type UpdateOrderStatusRequest struct {
 	Status int `json:"status"`
 }
-func GetAllOrders() ([]OrderListItem, error) {
+func GetAllOrders(page, limit int) ([]OrderListItem, int64, error) {
 	ctx := context.Background()
 
+	offset := (page - 1) * limit
 	query := `
 		SELECT
 		    o.id,
@@ -34,12 +35,13 @@ func GetAllOrders() ([]OrderListItem, error) {
 		JOIN order_items oi ON oi.order_id = o.id
 		LEFT JOIN shippings s ON s.id = o.shipping_id
 		GROUP BY o.id, s.name
-		ORDER BY o.order_date DESC;
+		ORDER BY o.order_date DESC
+		LIMIT $1 OFFSET $2;
 	`
 
-	rows, err := config.Db.Query(ctx, query)
+	rows, err := config.Db.Query(ctx, query, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -47,14 +49,23 @@ func GetAllOrders() ([]OrderListItem, error) {
 
 	for rows.Next() {
 		var o OrderListItem
-		err = rows.Scan(&o.ID, &o.Date, &o.Status, &o.Total)
+		err := rows.Scan(&o.ID, &o.Date, &o.Status, &o.Total)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		orders = append(orders, o)
 	}
 
-	return orders, nil
+	var totalItems int64
+	err = config.Db.QueryRow(ctx, `
+		SELECT COUNT(*) 
+		FROM orders;
+	`).Scan(&totalItems)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return orders, totalItems, nil
 }
 
 func UpdateOrderStatus(orderID int64, status int) error {

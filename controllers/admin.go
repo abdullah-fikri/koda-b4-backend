@@ -1,7 +1,10 @@
 package controllers
 
 import (
+	"backend/lib"
 	"backend/models"
+	"net/url"
+	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -17,15 +20,41 @@ import (
 // @Failure 500 {object} models.Response
 // @Router /admin/orders [get]
 func AdminOrderList(ctx *gin.Context) {
-	orders, err := models.GetAllOrders()
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+
+	orders, totalItems, err := models.GetAllOrders(page, limit)
 	if err != nil {
-		ctx.JSON(500, models.Response{Success: false, Message: err.Error()})
+		ctx.JSON(500, models.Response{
+			Success: false,
+			Message: err.Error(),
+		})
 		return
 	}
 
+	totalPage := int((totalItems + int64(limit) - 1) / int64(limit))
+
+	rawQuery := ctx.Request.URL.Query()
+	extraQuery := url.Values{}
+	for k, v := range rawQuery {
+		extraQuery[k] = append([]string{}, v...)
+	}
+
+	baseURL := os.Getenv("APP_BASE_URL")
+	path := ctx.Request.URL.Path
+
+	links := lib.Hateoas(baseURL, path, page, limit, totalPage, extraQuery)
+	pagination := lib.Pagination(page, limit, totalPage, totalItems, links)
+
 	ctx.JSON(200, models.Response{
-		Success: true,
-		Data:    orders,
+		Success:    true,
+		Message:    "list all order",
+		Pagination: pagination,
+		Data:       orders,
 	})
 }
 
