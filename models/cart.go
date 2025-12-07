@@ -79,36 +79,36 @@ func AddToCart(req ReqCart) (int64, error) {
 func GetCart(userID int64) ([]CartItemResponse, error) {
 	ctx := context.Background()
 
+	var cartID int64
+	err := config.Db.QueryRow(ctx, `
+		SELECT id FROM cart WHERE user_id = $1
+	`, userID).Scan(&cartID)
+	if err != nil {
+		return []CartItemResponse{}, nil
+	}
+
 	rows, err := config.Db.Query(ctx, `
-		SELECT 
-			ci.id AS cart_item_id,
-			p.id AS product_id,
-			p.name AS product_name,
-			COALESCE(v.name, '') AS variant_name,
-			COALESCE(s.name, '') AS size_name,
-			COALESCE(ps.price, p.price) AS price,
-			COALESCE(ps.price, p.price) * ci.qty AS subtotal,
-			ci.qty,
-			COALESCE(
-			  (
-				SELECT pi.image
-				FROM product_img pi
-				WHERE pi.product_id = p.id
-				ORDER BY pi.id ASC
-				LIMIT 1
-			  ),
-			  ''
-			) AS image
-		FROM cart_items ci
-		JOIN cart c ON c.id = ci.cart_id
-		JOIN products p ON p.id = ci.product_id
-		LEFT JOIN product_variant pv ON pv.id = ci.variant_id
-		LEFT JOIN variant v ON v.id = pv.variant_id
-		LEFT JOIN product_size ps ON ps.id = ci.size_id
-		LEFT JOIN size s ON s.id = ps.size_id
-		WHERE c.user_id = $1
-		ORDER BY ci.id DESC
-	`, userID)
+	SELECT 
+		ci.id AS cart_item_id,
+		p.id AS product_id,
+		p.name AS product_name,
+		COALESCE(v.name, '') AS variant_name,
+		COALESCE(s.name, '') AS size_name,
+		COALESCE(ps.price, p.price) AS price,
+		ci.qty,
+		(
+			SELECT pi.image 
+			FROM product_img pi 
+			WHERE pi.product_id = p.id 
+			LIMIT 1
+		) AS image
+	FROM cart_items ci
+	JOIN products p ON p.id = ci.product_id
+	LEFT JOIN variant v ON v.id = ci.variant_id
+	LEFT JOIN size s ON s.id = ci.size_id
+	LEFT JOIN product_size ps ON ps.product_id = p.id AND ps.size_id = ci.size_id
+	WHERE ci.cart_id = $1
+	`, cartID)
 	if err != nil {
 		return nil, err
 	}
@@ -118,19 +118,21 @@ func GetCart(userID int64) ([]CartItemResponse, error) {
 
 	for rows.Next() {
 		var item CartItemResponse
-		if err := rows.Scan(
+
+		err := rows.Scan(
 			&item.ID,
 			&item.ProductID,
 			&item.ProductName,
 			&item.Variant,
 			&item.Size,
 			&item.Price,
-			&item.Subtotal,
 			&item.Qty,
 			&item.Image,
-		); err != nil {
+		)
+		if err != nil {
 			return nil, err
 		}
+		item.Subtotal = item.Price * float64(item.Qty)
 
 		carts = append(carts, item)
 	}
