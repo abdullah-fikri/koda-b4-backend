@@ -11,6 +11,7 @@ type OrderListItem struct {
 	Date   time.Time `json:"date"`
 	Status string    `json:"status"`
 	Total  float64   `json:"total"`
+	Invoice string `json:"invoice"`
 }
 
 type Categories struct {
@@ -30,7 +31,8 @@ func GetAllOrders(page, limit int) ([]OrderListItem, int64, error) {
 		    o.id,
 		    o.order_date,
 		    s.name AS shipping_name,
-		    COALESCE(SUM(oi.subtotal), 0) AS total
+		    COALESCE(SUM(oi.subtotal), 0) AS total,
+			o.invoice
 		FROM orders o
 		JOIN order_items oi ON oi.order_id = o.id
 		LEFT JOIN shippings s ON s.id = o.shipping_id
@@ -49,7 +51,7 @@ func GetAllOrders(page, limit int) ([]OrderListItem, int64, error) {
 
 	for rows.Next() {
 		var o OrderListItem
-		err := rows.Scan(&o.ID, &o.Date, &o.Status, &o.Total)
+		err := rows.Scan(&o.ID, &o.Date, &o.Status, &o.Total, &o.Invoice)
 		if err != nil {
 			return nil, 0, err
 		}
