@@ -327,7 +327,7 @@ func ListUser(ctx *gin.Context) {
 		}
 
 		data, _ := json.Marshal(response)
-		config.Rdb.Set(context.Background(), key, data, 10*time.Minute)
+		config.Rdb.Set(context.Background(), key, data, 5*time.Second)
 
 		ctx.JSON(200, response)
 		return
