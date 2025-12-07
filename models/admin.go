@@ -34,7 +34,7 @@ func GetAllOrders(page, limit int) ([]OrderListItem, int64, error) {
 		    COALESCE(SUM(oi.subtotal), 0) AS total,
 			o.invoice
 		FROM orders o
-		JOIN order_items oi ON oi.order_id = o.id
+		LEFT JOIN order_items oi ON oi.order_id = o.id
 		LEFT JOIN shippings s ON s.id = o.shipping_id
 		GROUP BY o.id, s.name
 		ORDER BY o.order_date DESC
